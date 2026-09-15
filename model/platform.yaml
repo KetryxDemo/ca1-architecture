@@ -1,0 +1,233 @@
+schema: architecture.platform.v1
+file: model/platform.yaml
+
+model:
+  id: MDL-CAP
+  name: Cardiac Ablation Platform architecture model
+  status: hypothetical
+  disclaimer: >-
+    Hypothetical system built for demonstration only. Product names, decomposition and design
+    control identifiers do not correspond to any real device.
+  codeRepository:
+    relativePath: ../code-repo/
+    role: >-
+      Realization of the modelled elements. Every path recorded in this model is a path in that
+      repository. This model is authored independently of the code and the code is expected to
+      agree with it, not the other way round.
+  idConvention: >-
+    Uppercase, hyphen separated, no underscores. The prefix declares the entity kind - see
+    idPrefixes. Source file paths contain underscores; file paths are not ids.
+  idPrefixes:
+    - prefix: UN
+      entity: User need
+    - prefix: LC
+      entity: Logical component
+    - prefix: PRC
+      entity: Software process (software block)
+    - prefix: HWB
+      entity: Hardware block
+    - prefix: FN
+      entity: System function
+    - prefix: MOD
+      entity: Source module (realization)
+    - prefix: BHV
+      entity: Named API group offered by a source module
+    - prefix: TOP
+      entity: Message bus topic
+    - prefix: IF
+      entity: Process to process interface
+    - prefix: N2
+      entity: N-squared matrix or matrix cell
+    - prefix: CPL
+      entity: Coupling kind
+    - prefix: LYR
+      entity: Architecture layer
+    - prefix: MDL
+      entity: Model root
+    - prefix: RQ
+      entity: Requirement (design control, held in Ketryx)
+    - prefix: RSK
+      entity: Risk (design control, held in Ketryx)
+    - prefix: RC
+      entity: Requirement acting as a risk control (design control, held in Ketryx)
+    - prefix: TC
+      entity: Verification spec / test case (design control, held in Ketryx)
+
+layers:
+  design:
+    - id: LYR-NEED
+      name: User needs
+      holds: UN
+      definedIn: model/platform.yaml
+    - id: LYR-FUNC
+      name: System functions
+      holds: FN
+      definedIn: model/functions/
+    - id: LYR-LOGICAL
+      name: Logical components
+      holds: LC
+      definedIn: model/platform.yaml
+    - id: LYR-BLOCK
+      name: Software and hardware blocks
+      holds: PRC, HWB
+      definedIn: model/processes/ and model/platform.yaml
+    - id: LYR-REAL
+      name: Realization
+      holds: MOD, BHV
+      definedIn: model/modules/module-index.yaml
+  assurance:
+    - id: LYR-REQ
+      name: Requirements
+      holds: RQ, RC
+      systemOfRecord: Ketryx
+      populatedInThisModel: true
+      indexedIn: model/allocation/control-to-function.yaml
+    - id: LYR-SAFETY
+      name: Safety risk
+      holds: RSK
+      systemOfRecord: Ketryx
+      populatedInThisModel: true
+      indexedIn: model/allocation/control-to-function.yaml
+      note: >-
+        The risk control role is not a separate item type. It is carried by the
+        IS_RISK_CONTROLLED_BY relation from a risk to a requirement. See controlItemTypes in
+        model/allocation/control-to-function.yaml.
+    - id: LYR-CYBER
+      name: Cybersecurity
+      holds: none
+      systemOfRecord: Ketryx
+      populatedInThisModel: false
+      indexedIn: null
+    - id: LYR-HF
+      name: Human factors
+      holds: none
+      systemOfRecord: Ketryx
+      populatedInThisModel: false
+      indexedIn: null
+    - id: LYR-VV
+      name: Verification and validation
+      holds: TC
+      systemOfRecord: Ketryx
+      populatedInThisModel: true
+      indexedIn: model/allocation/control-to-function.yaml
+
+userNeeds:
+  - id: UN-01
+    name: Visualise chamber anatomy and electrical activity
+    statement: >-
+      The clinician can see a reconstruction of the cardiac chamber and the electrical activity
+      measured at the catheter while the procedure is under way.
+    realizedBy: [LC-MAP, LC-CATHIO]
+  - id: UN-02
+    name: Deliver and titrate ablation energy
+    statement: >-
+      The clinician can deliver ablation energy at a selected site and adjust delivered power and
+      duration during the delivery.
+    realizedBy: [LC-THERAPY]
+  - id: UN-03
+    name: Know when the platform can no longer be relied on
+    statement: >-
+      The clinician is informed, during a procedure, when the platform can no longer be relied on
+      to deliver therapy or to supervise its own correct operation.
+    realizedBy: [LC-HEALTH]
+  - id: UN-04
+    name: Retain procedure data
+    statement: >-
+      Procedure data is captured and retained so that the procedure can be reviewed afterwards and
+      so that the device history record is complete.
+    realizedBy: [LC-CASEREC]
+  - id: UN-05
+    name: Establish console readiness before a procedure
+    statement: >-
+      A service engineer or clinician can establish that console memory and storage are sound
+      before a procedure begins.
+    realizedBy: [LC-HEALTH]
+
+logicalComponents:
+  - id: LC-HEALTH
+    name: Platform health supervision
+    layer: LYR-LOGICAL
+    allocatedTo: [PRC-HEALTHMON]
+    satisfiesNeeds: [UN-03, UN-05]
+  - id: LC-THERAPY
+    name: Ablation energy delivery and control
+    layer: LYR-LOGICAL
+    allocatedTo: [PRC-GENERATORCTL]
+    satisfiesNeeds: [UN-02]
+  - id: LC-MAP
+    name: Electroanatomic mapping
+    layer: LYR-LOGICAL
+    allocatedTo: [PRC-MAPPINGENGINE]
+    satisfiesNeeds: [UN-01]
+  - id: LC-CATHIO
+    name: Catheter signal and position acquisition
+    layer: LYR-LOGICAL
+    allocatedTo: [PRC-CATHETERIO]
+    satisfiesNeeds: [UN-01]
+  - id: LC-CASEREC
+    name: Procedure data capture and retention
+    layer: LYR-LOGICAL
+    allocatedTo: [PRC-CASERECORDER]
+    satisfiesNeeds: [UN-04]
+  - id: LC-PLATFORM
+    name: Shared platform services
+    layer: LYR-LOGICAL
+    allocatedTo: [PRC-HEALTHMON, PRC-GENERATORCTL, PRC-MAPPINGENGINE, PRC-CATHETERIO, PRC-CASERECORDER]
+    satisfiesNeeds: []
+    note: >-
+      Cross cutting component. The message bus client and the interval timer are its realization
+      inside each process.
+
+hardwareBlocks:
+  - id: HWB-CONSOLE
+    name: Console compute module
+    layer: LYR-BLOCK
+    hosts: [PRC-HEALTHMON, PRC-GENERATORCTL, PRC-MAPPINGENGINE, PRC-CATHETERIO, PRC-CASERECORDER]
+  - id: HWB-STORAGE
+    name: Console storage subsystem
+    layer: LYR-BLOCK
+    hosts: []
+    accessedBy: [PRC-HEALTHMON, PRC-CASERECORDER]
+    mountPoints:
+      - /var/log
+      - /var/lib/cases
+  - id: HWB-GEN
+    name: Energy generator module
+    layer: LYR-BLOCK
+    hosts: []
+    accessedBy: [PRC-GENERATORCTL]
+  - id: HWB-CATH
+    name: Catheter interface module
+    layer: LYR-BLOCK
+    hosts: []
+    accessedBy: [PRC-CATHETERIO]
+
+processIndex:
+  about: >-
+    Cross reference only. Each process is defined in its own file; the `id:` key for a process
+    appears there and nowhere else. Every id in this model has exactly one definition site.
+  entries:
+    - process: PRC-HEALTHMON
+      processName: health-monitor
+      file: model/processes/PRC-HEALTHMON.yaml
+      decompositionModelled: true
+    - process: PRC-GENERATORCTL
+      processName: generator-control
+      file: model/processes/PRC-GENERATORCTL.yaml
+      decompositionModelled: false
+    - process: PRC-MAPPINGENGINE
+      processName: mapping-engine
+      file: model/processes/PRC-MAPPINGENGINE.yaml
+      decompositionModelled: false
+    - process: PRC-CATHETERIO
+      processName: catheter-io
+      file: model/processes/PRC-CATHETERIO.yaml
+      decompositionModelled: false
+    - process: PRC-CASERECORDER
+      processName: case-recorder
+      file: model/processes/PRC-CASERECORDER.yaml
+      decompositionModelled: false
+  processNameAuthority: >-
+    processName is the string the platform uses on the bus and in configuration. The peer list in
+    ../code-repo/config/health-monitor.json under heartbeat.peers carries exactly these four peer
+    names, and each peer publishes on peer.heartbeat.<processName>.

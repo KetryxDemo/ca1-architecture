@@ -1,0 +1,47 @@
+schema: architecture.process.v1
+file: model/processes/PRC-CATHETERIO.yaml
+
+process:
+  id: PRC-CATHETERIO
+  name: Catheter IO Service
+  processName: catheter-io
+  layer: LYR-BLOCK
+  realizesComponent: LC-CATHIO
+  satisfiesNeeds: [UN-01]
+  hostedOn: HWB-CONSOLE
+  accessesHardware: [HWB-CATH]
+  description: >-
+    Owns the catheter interface hardware. Samples the electrogram channels and the catheter
+    position sensors and publishes the conditioned streams for the rest of the platform.
+  executionModel: >-
+    Single operating system process started at console boot. Links against the same platform
+    message bus client as every other service.
+  safetyClassification: safety related platform service
+  sourceRoot: not in ../code-repo/
+  decompositionModelled: false
+  decompositionNote: >-
+    This process is modelled at block level only. Its functions, source modules and design control
+    allocation are held outside this model slice, and ../code-repo/ contains the health-monitor
+    service alone. The bus contract below is modelled because PRC-HEALTHMON depends on it, and it
+    is recoverable from the health-monitor source and configuration. Absence of FN, MOD, RQ, RSK,
+    RC or TC ids on this process is a scope boundary of the slice, not a coverage state.
+  ownsFunctions: []
+  realizedByModules: []
+  publishes:
+    - TOP-PEER-HEARTBEAT-PEERS
+  subscribes:
+    - TOP-HEALTH-RAM
+    - TOP-HEALTH-DISK
+    - TOP-HEALTH-HEARTBEAT
+    - TOP-HEALTH-QUORUM
+  subscriptionEvidence: >-
+    Inferred from the platform contract, not from source in this repository. The health-monitor
+    source proves publication of these topics and proves that this process publishes
+    peer.heartbeat.catheter-io; it does not prove which health topics this process reads.
+  interfaces:
+    - IF-HM-CATHIO
+  designControlAllocation:
+    populatedInThisModel: false
+    resolveVia: null
+  interactionMatrices:
+    - N2-PRC

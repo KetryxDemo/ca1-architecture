@@ -1,0 +1,71 @@
+schema: architecture.process.v1
+file: model/processes/PRC-HEALTHMON.yaml
+
+process:
+  id: PRC-HEALTHMON
+  name: Health Monitor Service
+  processName: health-monitor
+  layer: LYR-BLOCK
+  realizesComponent: LC-HEALTH
+  satisfiesNeeds: [UN-03, UN-05]
+  hostedOn: HWB-CONSOLE
+  accessesHardware: [HWB-STORAGE]
+  description: >-
+    Supervisory service that runs for the whole console uptime and reports whether the platform is
+    fit to deliver and supervise therapy. It sweeps console memory for integrity faults, probes
+    console storage for capacity, writability and latency faults, emits its own heartbeat and
+    watches the heartbeats of the four peer processes, and publishes a health result for each
+    subject it supervises.
+  executionModel: >-
+    Single operating system process, single threaded control loop. Each iteration drains the
+    message bus, then services every enabled check in construction order, then sleeps until the
+    nearest check is next due, bounded by loop_period_s. Every check is polled on every iteration
+    regardless of whether it has work to do; the check itself decides from the tick whether to act
+    and whether to acknowledge its cadence slot.
+  controlLoop:
+    entryPoint: src/health_monitor/service.py HealthMonitorService.step
+    loopPeriodSeconds: 0.25
+    configFile: config/health-monitor.json
+    orderOfService: [FN-HM-RAM, FN-HM-DISK, FN-HM-HB]
+    exitCodes:
+      0: clean shutdown after SIGTERM or SIGINT
+      2: configuration error
+      3: a check raised during construction
+  safetyClassification: safety related supervisory service
+  sourceRoot: src/health_monitor/
+  decompositionModelled: true
+  ownsFunctions:
+    - FN-HM-RAM
+    - FN-HM-DISK
+    - FN-HM-HB
+  realizedByModules:
+    - MOD-SERVICE
+    - MOD-CONFIG
+    - MOD-BUS
+    - MOD-LOGSETUP
+    - MOD-CHECKBASE
+    - MOD-TYPES
+    - MOD-INTERVALTIMER
+    - MOD-MEMINTEGRITY
+    - MOD-STORAGEHEALTH
+    - MOD-HEARTBEAT
+  publishes:
+    - TOP-HEALTH-RAM
+    - TOP-HEALTH-DISK
+    - TOP-HEALTH-HEARTBEAT
+    - TOP-HEALTH-QUORUM
+    - TOP-HEALTH-STATUS
+    - TOP-PEER-HEARTBEAT-SELF
+  subscribes:
+    - TOP-PEER-HEARTBEAT-PEERS
+  interfaces:
+    - IF-HM-GENCTL
+    - IF-HM-MAPENG
+    - IF-HM-CATHIO
+    - IF-HM-CASEREC
+  designControlAllocation:
+    populatedInThisModel: true
+    resolveVia: model/allocation/function-to-control.yaml
+  interactionMatrices:
+    - N2-HEALTHMON
+    - N2-PRC

@@ -1,0 +1,864 @@
+schema: architecture.allocation.reverse.v1
+file: model/allocation/control-to-function.yaml
+
+about: >-
+  Reverse allocation index. One entry per design control id referenced by this model, giving the
+  system function it is allocated to and the realization that function is built from. This file
+  intentionally holds no design control content - no requirement text, no risk statement, no test
+  steps. Those live in Ketryx and are the system of record. This file exists so that an agent
+  holding a control id can reach the architecture in one hop, and an agent holding a changed
+  source path can reach the control ids in one hop through
+  model/allocation/function-to-control.yaml.
+
+systemOfRecord:
+  controls: Ketryx
+  allocation: this repository
+  codeRealization: ../code-repo/
+
+controlItemTypes:
+  - prefix: RQ
+    ketryxItemType: REQUIREMENT
+    role: requirement
+  - prefix: RSK
+    ketryxItemType: RISK
+    role: risk
+  - prefix: RC
+    ketryxItemType: REQUIREMENT
+    role: risk control
+    roleExpressedBy: >-
+      The built-in IS_RISK_CONTROLLED_BY relation, with the risk as source and the requirement as
+      target. RISK_CONTROL is not an item type. RC- is a naming convention in this model for the
+      requirements that carry the risk control role, and those ids resolve to REQUIREMENT items.
+  - prefix: TC
+    ketryxItemType: TEST_PROTOCOL
+    role: verification spec / test case
+
+idRanges:
+  - prefix: RQ
+    range: RQ-HM-01 to RQ-HM-09
+  - prefix: RSK
+    range: RSK-HM-01 to RSK-HM-05
+  - prefix: RC
+    range: RC-HM-01 to RC-HM-04
+  - prefix: TC
+    range: TC-HM-01 to TC-HM-09
+
+controls:
+  - id: RQ-HM-01
+    ketryxItemType: REQUIREMENT
+    role: requirement
+    layer: LYR-REQ
+    allocatedToFunction: FN-HM-RAM
+    functionFile: model/functions/FN-HM-RAM.yaml
+    checkId: ram
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-MEMINTEGRITY
+      path: src/health_monitor/checks/memory_integrity.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-RAM]
+    interactionCellsAsRow: [N2-RAM-DISK, N2-RAM-HB]
+  - id: RQ-HM-02
+    ketryxItemType: REQUIREMENT
+    role: requirement
+    layer: LYR-REQ
+    allocatedToFunction: FN-HM-RAM
+    functionFile: model/functions/FN-HM-RAM.yaml
+    checkId: ram
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-MEMINTEGRITY
+      path: src/health_monitor/checks/memory_integrity.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-RAM]
+    interactionCellsAsRow: [N2-RAM-DISK, N2-RAM-HB]
+  - id: RQ-HM-03
+    ketryxItemType: REQUIREMENT
+    role: requirement
+    layer: LYR-REQ
+    allocatedToFunction: FN-HM-RAM
+    functionFile: model/functions/FN-HM-RAM.yaml
+    checkId: ram
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-MEMINTEGRITY
+      path: src/health_monitor/checks/memory_integrity.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-RAM]
+    interactionCellsAsRow: [N2-RAM-DISK, N2-RAM-HB]
+  - id: RQ-HM-04
+    ketryxItemType: REQUIREMENT
+    role: requirement
+    layer: LYR-REQ
+    allocatedToFunction: FN-HM-DISK
+    functionFile: model/functions/FN-HM-DISK.yaml
+    checkId: disk
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-STORAGEHEALTH
+      path: src/health_monitor/checks/storage_health.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-DISK]
+    interactionCellsAsRow: [N2-DISK-RAM, N2-DISK-HB]
+  - id: RQ-HM-05
+    ketryxItemType: REQUIREMENT
+    role: requirement
+    layer: LYR-REQ
+    allocatedToFunction: FN-HM-DISK
+    functionFile: model/functions/FN-HM-DISK.yaml
+    checkId: disk
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-STORAGEHEALTH
+      path: src/health_monitor/checks/storage_health.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-DISK]
+    interactionCellsAsRow: [N2-DISK-RAM, N2-DISK-HB]
+  - id: RQ-HM-06
+    ketryxItemType: REQUIREMENT
+    role: requirement
+    layer: LYR-REQ
+    allocatedToFunction: FN-HM-DISK
+    functionFile: model/functions/FN-HM-DISK.yaml
+    checkId: disk
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-STORAGEHEALTH
+      path: src/health_monitor/checks/storage_health.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-DISK]
+    interactionCellsAsRow: [N2-DISK-RAM, N2-DISK-HB]
+  - id: RQ-HM-07
+    ketryxItemType: REQUIREMENT
+    role: requirement
+    layer: LYR-REQ
+    allocatedToFunction: FN-HM-HB
+    functionFile: model/functions/FN-HM-HB.yaml
+    checkId: heartbeat
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-HEARTBEAT
+      path: src/health_monitor/checks/heartbeat.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-HEARTBEAT, TOP-HEALTH-QUORUM, TOP-PEER-HEARTBEAT-SELF]
+    interactionCellsAsRow: [N2-HB-RAM, N2-HB-DISK]
+  - id: RQ-HM-08
+    ketryxItemType: REQUIREMENT
+    role: requirement
+    layer: LYR-REQ
+    allocatedToFunction: FN-HM-HB
+    functionFile: model/functions/FN-HM-HB.yaml
+    checkId: heartbeat
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-HEARTBEAT
+      path: src/health_monitor/checks/heartbeat.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-HEARTBEAT, TOP-HEALTH-QUORUM, TOP-PEER-HEARTBEAT-SELF]
+    interactionCellsAsRow: [N2-HB-RAM, N2-HB-DISK]
+  - id: RQ-HM-09
+    ketryxItemType: REQUIREMENT
+    role: requirement
+    layer: LYR-REQ
+    allocatedToFunction: FN-HM-HB
+    functionFile: model/functions/FN-HM-HB.yaml
+    checkId: heartbeat
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-HEARTBEAT
+      path: src/health_monitor/checks/heartbeat.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-HEARTBEAT, TOP-HEALTH-QUORUM, TOP-PEER-HEARTBEAT-SELF]
+    interactionCellsAsRow: [N2-HB-RAM, N2-HB-DISK]
+  - id: RSK-HM-01
+    ketryxItemType: RISK
+    role: risk
+    layer: LYR-SAFETY
+    allocatedToFunction: FN-HM-RAM
+    functionFile: model/functions/FN-HM-RAM.yaml
+    checkId: ram
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-MEMINTEGRITY
+      path: src/health_monitor/checks/memory_integrity.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-RAM]
+    interactionCellsAsRow: [N2-RAM-DISK, N2-RAM-HB]
+  - id: RSK-HM-02
+    ketryxItemType: RISK
+    role: risk
+    layer: LYR-SAFETY
+    allocatedToFunction: FN-HM-RAM
+    functionFile: model/functions/FN-HM-RAM.yaml
+    checkId: ram
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-MEMINTEGRITY
+      path: src/health_monitor/checks/memory_integrity.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-RAM]
+    interactionCellsAsRow: [N2-RAM-DISK, N2-RAM-HB]
+  - id: RSK-HM-03
+    ketryxItemType: RISK
+    role: risk
+    layer: LYR-SAFETY
+    allocatedToFunction: FN-HM-DISK
+    functionFile: model/functions/FN-HM-DISK.yaml
+    checkId: disk
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-STORAGEHEALTH
+      path: src/health_monitor/checks/storage_health.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-DISK]
+    interactionCellsAsRow: [N2-DISK-RAM, N2-DISK-HB]
+  - id: RSK-HM-04
+    ketryxItemType: RISK
+    role: risk
+    layer: LYR-SAFETY
+    allocatedToFunction: FN-HM-HB
+    functionFile: model/functions/FN-HM-HB.yaml
+    checkId: heartbeat
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-HEARTBEAT
+      path: src/health_monitor/checks/heartbeat.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-HEARTBEAT, TOP-HEALTH-QUORUM, TOP-PEER-HEARTBEAT-SELF]
+    interactionCellsAsRow: [N2-HB-RAM, N2-HB-DISK]
+  - id: RSK-HM-05
+    ketryxItemType: RISK
+    role: risk
+    layer: LYR-SAFETY
+    allocatedToFunction: FN-HM-HB
+    functionFile: model/functions/FN-HM-HB.yaml
+    checkId: heartbeat
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-HEARTBEAT
+      path: src/health_monitor/checks/heartbeat.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-HEARTBEAT, TOP-HEALTH-QUORUM, TOP-PEER-HEARTBEAT-SELF]
+    interactionCellsAsRow: [N2-HB-RAM, N2-HB-DISK]
+  - id: RC-HM-01
+    ketryxItemType: REQUIREMENT
+    role: risk control
+    layer: LYR-REQ
+    roleExpressedBy: >-
+      Carried by the built-in IS_RISK_CONTROLLED_BY relation, with the risk as source and this requirement as target. Not a distinct item type.
+    allocatedToFunction: FN-HM-RAM
+    functionFile: model/functions/FN-HM-RAM.yaml
+    checkId: ram
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-MEMINTEGRITY
+      path: src/health_monitor/checks/memory_integrity.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-RAM]
+    interactionCellsAsRow: [N2-RAM-DISK, N2-RAM-HB]
+  - id: RC-HM-02
+    ketryxItemType: REQUIREMENT
+    role: risk control
+    layer: LYR-REQ
+    roleExpressedBy: >-
+      Carried by the built-in IS_RISK_CONTROLLED_BY relation, with the risk as source and this requirement as target. Not a distinct item type.
+    allocatedToFunction: FN-HM-DISK
+    functionFile: model/functions/FN-HM-DISK.yaml
+    checkId: disk
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-STORAGEHEALTH
+      path: src/health_monitor/checks/storage_health.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-DISK]
+    interactionCellsAsRow: [N2-DISK-RAM, N2-DISK-HB]
+  - id: RC-HM-03
+    ketryxItemType: REQUIREMENT
+    role: risk control
+    layer: LYR-REQ
+    roleExpressedBy: >-
+      Carried by the built-in IS_RISK_CONTROLLED_BY relation, with the risk as source and this requirement as target. Not a distinct item type.
+    allocatedToFunction: FN-HM-HB
+    functionFile: model/functions/FN-HM-HB.yaml
+    checkId: heartbeat
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-HEARTBEAT
+      path: src/health_monitor/checks/heartbeat.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-HEARTBEAT, TOP-HEALTH-QUORUM, TOP-PEER-HEARTBEAT-SELF]
+    interactionCellsAsRow: [N2-HB-RAM, N2-HB-DISK]
+  - id: RC-HM-04
+    ketryxItemType: REQUIREMENT
+    role: risk control
+    layer: LYR-REQ
+    roleExpressedBy: >-
+      Carried by the built-in IS_RISK_CONTROLLED_BY relation, with the risk as source and this requirement as target. Not a distinct item type.
+    allocatedToFunction: FN-HM-HB
+    functionFile: model/functions/FN-HM-HB.yaml
+    checkId: heartbeat
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-HEARTBEAT
+      path: src/health_monitor/checks/heartbeat.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-HEARTBEAT, TOP-HEALTH-QUORUM, TOP-PEER-HEARTBEAT-SELF]
+    interactionCellsAsRow: [N2-HB-RAM, N2-HB-DISK]
+  - id: TC-HM-01
+    ketryxItemType: TEST_PROTOCOL
+    role: verification spec / test case
+    layer: LYR-VV
+    allocatedToFunction: FN-HM-RAM
+    functionFile: model/functions/FN-HM-RAM.yaml
+    checkId: ram
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-MEMINTEGRITY
+      path: src/health_monitor/checks/memory_integrity.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-RAM]
+    interactionCellsAsRow: [N2-RAM-DISK, N2-RAM-HB]
+  - id: TC-HM-02
+    ketryxItemType: TEST_PROTOCOL
+    role: verification spec / test case
+    layer: LYR-VV
+    allocatedToFunction: FN-HM-RAM
+    functionFile: model/functions/FN-HM-RAM.yaml
+    checkId: ram
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-MEMINTEGRITY
+      path: src/health_monitor/checks/memory_integrity.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-RAM]
+    interactionCellsAsRow: [N2-RAM-DISK, N2-RAM-HB]
+  - id: TC-HM-03
+    ketryxItemType: TEST_PROTOCOL
+    role: verification spec / test case
+    layer: LYR-VV
+    allocatedToFunction: FN-HM-RAM
+    functionFile: model/functions/FN-HM-RAM.yaml
+    checkId: ram
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-MEMINTEGRITY
+      path: src/health_monitor/checks/memory_integrity.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-RAM]
+    interactionCellsAsRow: [N2-RAM-DISK, N2-RAM-HB]
+  - id: TC-HM-04
+    ketryxItemType: TEST_PROTOCOL
+    role: verification spec / test case
+    layer: LYR-VV
+    allocatedToFunction: FN-HM-DISK
+    functionFile: model/functions/FN-HM-DISK.yaml
+    checkId: disk
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-STORAGEHEALTH
+      path: src/health_monitor/checks/storage_health.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-DISK]
+    interactionCellsAsRow: [N2-DISK-RAM, N2-DISK-HB]
+  - id: TC-HM-05
+    ketryxItemType: TEST_PROTOCOL
+    role: verification spec / test case
+    layer: LYR-VV
+    allocatedToFunction: FN-HM-DISK
+    functionFile: model/functions/FN-HM-DISK.yaml
+    checkId: disk
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-STORAGEHEALTH
+      path: src/health_monitor/checks/storage_health.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-DISK]
+    interactionCellsAsRow: [N2-DISK-RAM, N2-DISK-HB]
+  - id: TC-HM-06
+    ketryxItemType: TEST_PROTOCOL
+    role: verification spec / test case
+    layer: LYR-VV
+    allocatedToFunction: FN-HM-DISK
+    functionFile: model/functions/FN-HM-DISK.yaml
+    checkId: disk
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-STORAGEHEALTH
+      path: src/health_monitor/checks/storage_health.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-DISK]
+    interactionCellsAsRow: [N2-DISK-RAM, N2-DISK-HB]
+  - id: TC-HM-07
+    ketryxItemType: TEST_PROTOCOL
+    role: verification spec / test case
+    layer: LYR-VV
+    allocatedToFunction: FN-HM-HB
+    functionFile: model/functions/FN-HM-HB.yaml
+    checkId: heartbeat
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-HEARTBEAT
+      path: src/health_monitor/checks/heartbeat.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-HEARTBEAT, TOP-HEALTH-QUORUM, TOP-PEER-HEARTBEAT-SELF]
+    interactionCellsAsRow: [N2-HB-RAM, N2-HB-DISK]
+  - id: TC-HM-08
+    ketryxItemType: TEST_PROTOCOL
+    role: verification spec / test case
+    layer: LYR-VV
+    allocatedToFunction: FN-HM-HB
+    functionFile: model/functions/FN-HM-HB.yaml
+    checkId: heartbeat
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-HEARTBEAT
+      path: src/health_monitor/checks/heartbeat.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-HEARTBEAT, TOP-HEALTH-QUORUM, TOP-PEER-HEARTBEAT-SELF]
+    interactionCellsAsRow: [N2-HB-RAM, N2-HB-DISK]
+  - id: TC-HM-09
+    ketryxItemType: TEST_PROTOCOL
+    role: verification spec / test case
+    layer: LYR-VV
+    allocatedToFunction: FN-HM-HB
+    functionFile: model/functions/FN-HM-HB.yaml
+    checkId: heartbeat
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-HEARTBEAT
+      path: src/health_monitor/checks/heartbeat.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+    publishesTo: [TOP-HEALTH-HEARTBEAT, TOP-HEALTH-QUORUM, TOP-PEER-HEARTBEAT-SELF]
+    interactionCellsAsRow: [N2-HB-RAM, N2-HB-DISK]
+
+functionRollup:
+  about: Counts of allocated controls per function, for a quick completeness check.
+  entries:
+    - function: FN-HM-RAM
+      requirements: 3
+      risks: 2
+      riskControlRequirements: 1
+      verifications: 3
+    - function: FN-HM-DISK
+      requirements: 3
+      risks: 1
+      riskControlRequirements: 1
+      verifications: 3
+    - function: FN-HM-HB
+      requirements: 3
+      risks: 2
+      riskControlRequirements: 2
+      verifications: 3
+  totals:
+    requirements: 9
+    risks: 5
+    riskControlRequirements: 4
+    verifications: 9
+  note: >-
+    requirements and riskControlRequirements are both REQUIREMENT items in Ketryx and are counted
+    separately here only because this model distinguishes the risk control role.

@@ -1,0 +1,47 @@
+schema: architecture.process.v1
+file: model/processes/PRC-CASERECORDER.yaml
+
+process:
+  id: PRC-CASERECORDER
+  name: Case Recorder Service
+  processName: case-recorder
+  layer: LYR-BLOCK
+  realizesComponent: LC-CASEREC
+  satisfiesNeeds: [UN-04]
+  hostedOn: HWB-CONSOLE
+  accessesHardware: [HWB-STORAGE]
+  description: >-
+    Writes the platform data streams to the console store as a procedure record, seals completed
+    records and archives them.
+  executionModel: >-
+    Single operating system process started at console boot. Links against the same platform
+    message bus client as every other service.
+  safetyClassification: safety related platform service
+  sourceRoot: not in ../code-repo/
+  decompositionModelled: false
+  decompositionNote: >-
+    This process is modelled at block level only. Its functions, source modules and design control
+    allocation are held outside this model slice, and ../code-repo/ contains the health-monitor
+    service alone. The bus contract below is modelled because PRC-HEALTHMON depends on it, and it
+    is recoverable from the health-monitor source and configuration. Absence of FN, MOD, RQ, RSK,
+    RC or TC ids on this process is a scope boundary of the slice, not a coverage state.
+  ownsFunctions: []
+  realizedByModules: []
+  publishes:
+    - TOP-PEER-HEARTBEAT-PEERS
+  subscribes:
+    - TOP-HEALTH-RAM
+    - TOP-HEALTH-DISK
+    - TOP-HEALTH-HEARTBEAT
+    - TOP-HEALTH-QUORUM
+  subscriptionEvidence: >-
+    Inferred from the platform contract, not from source in this repository. The health-monitor
+    source proves publication of these topics and proves that this process publishes
+    peer.heartbeat.case-recorder; it does not prove which health topics this process reads.
+  interfaces:
+    - IF-HM-CASEREC
+  designControlAllocation:
+    populatedInThisModel: false
+    resolveVia: null
+  interactionMatrices:
+    - N2-PRC

@@ -1,0 +1,114 @@
+schema: architecture.function.v1
+file: model/functions/FN-HM-RAM.yaml
+
+function:
+  id: FN-HM-RAM
+  name: Memory integrity checking
+  checkId: ram
+  layer: LYR-FUNC
+  owningProcess: PRC-HEALTHMON
+  realizesComponent: LC-HEALTH
+  satisfiesNeeds: [UN-03, UN-05]
+  description: >-
+    Sweeps the protected memory region in slices, comparing the checksum of each page against the
+    checksum recorded for that page at region commit time, and watches the platform ECC counters
+    across the sweep. The sweep carries a cursor between slices, so one full pass spans as many
+    cadence slots as the region size requires. A completed pass publishes one result; a partial
+    slice publishes nothing.
+  cadence:
+    kind: periodic, self paced
+    configuredPeriodSeconds: 5.0
+    configKey: memory.scan_period_s
+    startDue: true
+  inputs:
+    - name: Protected region map and thresholds
+      kind: configuration
+      origin: MOD-CONFIG MemoryCheckConfig
+      fields: [region_bytes, pages_per_slice, slice_budget_ms, correctable_warn_threshold, uncorrectable_fault_threshold, scan_period_s]
+    - name: Page bytes and committed checksum
+      kind: platform read
+      origin: MemorySource.read_page and MemorySource.expected_checksum
+      note: NullMemorySource stands in when the protected region is not mapped.
+    - name: ECC counters
+      kind: platform read
+      origin: MemorySource.ecc_counters
+      note: Monotonic since boot. The check reports the delta across one completed pass.
+    - name: Timer tick
+      kind: event
+      origin: MOD-INTERVALTIMER via MOD-CHECKBASE
+      note: >-
+        One TimerTick per control-loop iteration, produced by this function's own IntervalTimer
+        instance and passed through PeriodicCheck.service without interpretation.
+  outputs:
+    - name: Memory integrity result
+      kind: published result
+      topic: TOP-HEALTH-RAM
+      states: [OK, DEGRADED, FAULT]
+      subject: none, single aggregate value
+      emittedWhen: a full pass over the region completes
+      metrics: [pass_index, pages_scanned, region_bytes, checksum_mismatches, ecc_correctable, ecc_uncorrectable]
+    - name: Cadence slip warning
+      kind: log record
+      level: warning
+      emittedWhen: the tick reports overdue_by greater than the configured scan period
+      fields: [overdue_by_s, missed_slots]
+    - name: Checksum mismatch record
+      kind: log record
+      level: error
+      fields: [offset, length, expected_crc, observed_crc]
+  timerUsage:
+    instances:
+      - name: ram-sweep
+        constructedIn: src/health_monitor/checks/memory_integrity.py MemoryIntegrityCheck.__init__
+        constructorArgs:
+          period_s: config.scan_period_s
+          expiry_s: not supplied
+          clock: injected, defaults to time.monotonic
+          start_due: true
+        count: 1
+    tickMembersRead: [due, overdue_by, missed_slots, now]
+    membersAlsoReadByTheBaseClass:
+      members: [missed_slots, now]
+      readIn: MOD-CHECKBASE PeriodicCheck.service
+      note: >-
+        Read for every subclass, on the instance named above. tickMembersRead on this function
+        records what this function's own code reads, not what the base class reads on its behalf.
+    timerMethodsCalled: [poll, mark_serviced]
+    cadenceSlotAcknowledgedBy: this function, by calling mark_serviced after advancing a slice
+  otherClocksAndWindows:
+    - name: slice budget clock
+      source: budget_clock, defaults to time.perf_counter
+      usedFor: >-
+        Bounding the time one slice spends inside the check, against slice_budget_ms. Read in
+        _advance_slice, independent of the timer instance and of the timer's clock.
+      configKey: memory.slice_budget_ms
+      configuredValueMs: 1.5
+  realizedBy:
+    - module: MOD-MEMINTEGRITY
+      path: src/health_monitor/checks/memory_integrity.py
+      role: primary
+      exclusiveToThisFunction: true
+    - module: MOD-CHECKBASE
+      path: src/health_monitor/checks/base.py
+      role: shared base class
+    - module: MOD-INTERVALTIMER
+      path: src/health_monitor/common/interval_timer.py
+      role: shared module
+    - module: MOD-TYPES
+      path: src/health_monitor/common/types.py
+      role: shared value types
+    - module: MOD-BUS
+      path: src/health_monitor/bus.py
+      role: shared transport
+    - module: MOD-CONFIG
+      path: src/health_monitor/config.py
+      role: shared configuration
+  allocations:
+    requirements: [RQ-HM-01, RQ-HM-02, RQ-HM-03]
+    risks: [RSK-HM-01, RSK-HM-02]
+    riskControlRequirements: [RC-HM-01]
+    verifications: [TC-HM-01, TC-HM-02, TC-HM-03]
+    reverseIndex: model/allocation/control-to-function.yaml
+  interactionCells:
+    asRow: [N2-RAM-DISK, N2-RAM-HB]
+    asColumn: [N2-DISK-RAM, N2-HB-RAM]

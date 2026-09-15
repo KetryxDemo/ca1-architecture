@@ -1,0 +1,188 @@
+schema: architecture.interfaces.v1
+file: model/interfaces/topics.yaml
+
+about: >-
+  Message bus topics and the process to process interfaces built from them. All inter process
+  communication on this platform goes over the platform message bus; the health-monitor's local
+  face of that bus client is MOD-BUS. A topic is the unit of data. An interface is the bundle of
+  topics that couples one process to another, named per ordered pair so direction is explicit.
+
+transport:
+  mechanism: publish and subscribe over the platform message bus
+  localClient: MOD-BUS
+  socket: /run/platform/bus.sock
+  patternRule: >-
+    Topic patterns support a single trailing wildcard segment, for example peer.heartbeat.*. A
+    trailing wildcard consumes exactly one segment. Exact topics are matched first.
+  deliveryModel: >-
+    Queue backed and non blocking to the publisher. Delivery happens on drain, which the service
+    control loop calls once per iteration, or on a dedicated dispatch thread.
+  topicNamingRule: >-
+    Health results are named by MOD-TYPES CheckResult.topic as health.<check> when the result has
+    no subject, and health.<check>.<subject> when it does.
+
+topics:
+
+  - id: TOP-HEALTH-RAM
+    name: health.ram
+    publishers:
+      - process: PRC-HEALTHMON
+        function: FN-HM-RAM
+    subscribers:
+      - process: PRC-GENERATORCTL
+      - process: PRC-MAPPINGENGINE
+      - process: PRC-CATHETERIO
+      - process: PRC-CASERECORDER
+    subscriberEvidence: platform contract, not proven by source in ../code-repo/
+    subjectSegment: none
+    payload: [check, subject, state, severity, detail, metrics, monotonic_ts]
+    metrics: [pass_index, pages_scanned, region_bytes, checksum_mismatches, ecc_correctable, ecc_uncorrectable]
+    publishRate: once per completed sweep pass over the protected region
+
+  - id: TOP-HEALTH-DISK
+    name: health.disk.<mount-slug>
+    instances: [health.disk.var-log, health.disk.var-lib-cases]
+    publishers:
+      - process: PRC-HEALTHMON
+        function: FN-HM-DISK
+    subscribers:
+      - process: PRC-GENERATORCTL
+      - process: PRC-MAPPINGENGINE
+      - process: PRC-CATHETERIO
+      - process: PRC-CASERECORDER
+    subscriberEvidence: platform contract, not proven by source in ../code-repo/
+    subjectSegment: the mount slug
+    payload: [check, subject, state, severity, detail, metrics, monotonic_ts]
+    metrics: [free_fraction, total_bytes, write_latency_ms, consecutive_failures, stale_for_s]
+    publishRate: one message per configured mount per cadence slot
+
+  - id: TOP-HEALTH-HEARTBEAT
+    name: health.heartbeat.<peer>
+    instances:
+      - health.heartbeat.generator-control
+      - health.heartbeat.mapping-engine
+      - health.heartbeat.catheter-io
+      - health.heartbeat.case-recorder
+    publishers:
+      - process: PRC-HEALTHMON
+        function: FN-HM-HB
+    subscribers:
+      - process: PRC-GENERATORCTL
+      - process: PRC-MAPPINGENGINE
+      - process: PRC-CATHETERIO
+      - process: PRC-CASERECORDER
+    subscriberEvidence: platform contract, not proven by source in ../code-repo/
+    subjectSegment: the peer name
+    payload: [check, subject, state, severity, detail, metrics, monotonic_ts]
+    metrics: [silent_for_s, losses, refreshes]
+    publishRate: only on a transition of that peer's live flag
+
+  - id: TOP-HEALTH-QUORUM
+    name: health.heartbeat.quorum
+    publishers:
+      - process: PRC-HEALTHMON
+        function: FN-HM-HB
+    subscribers:
+      - process: PRC-GENERATORCTL
+      - process: PRC-MAPPINGENGINE
+      - process: PRC-CATHETERIO
+      - process: PRC-CASERECORDER
+    subscriberEvidence: >-
+      Platform contract. The heartbeat module docstring records that the supervisor uses quorum
+      loss to drive the platform into its safe state.
+    subjectSegment: the literal quorum
+    payload: [check, subject, state, severity, detail, metrics, monotonic_ts]
+    metrics: [live_peers, required_peers, configured_peers]
+    publishRate: only on a transition of the quorum state
+
+  - id: TOP-HEALTH-STATUS
+    name: health.monitor.status
+    publishers:
+      - process: PRC-HEALTHMON
+        module: MOD-SERVICE
+    subscribers: []
+    subjectSegment: none
+    payload: per check counters from MOD-TYPES CheckStats
+    metrics: [runs, faults, degraded, skipped_slots, last_state, last_run_monotonic]
+    publishRate: service level, not tied to any one check's cadence
+
+  - id: TOP-PEER-HEARTBEAT-SELF
+    name: peer.heartbeat.health-monitor
+    publishers:
+      - process: PRC-HEALTHMON
+        function: FN-HM-HB
+    subscribers:
+      - process: PRC-GENERATORCTL
+      - process: PRC-MAPPINGENGINE
+      - process: PRC-CATHETERIO
+      - process: PRC-CASERECORDER
+    subscriberEvidence: >-
+      Platform contract. The heartbeat module records that the service publishes its own heartbeat
+      so that peers can observe it.
+    payload: [instance, sequence, emit_period_s]
+    publishRate: every emit period, 1.0 s with the shipped configuration
+    selfMatchNote: >-
+      This topic also matches the pattern FN-HM-HB subscribes with. The handler resolves the last
+      topic segment against the configured peer roster, health-monitor is not in that roster, and
+      the message is discarded with a debug record.
+
+  - id: TOP-PEER-HEARTBEAT-PEERS
+    name: peer.heartbeat.<peer>
+    instances:
+      - peer.heartbeat.generator-control
+      - peer.heartbeat.mapping-engine
+      - peer.heartbeat.catheter-io
+      - peer.heartbeat.case-recorder
+    publishers:
+      - process: PRC-GENERATORCTL
+      - process: PRC-MAPPINGENGINE
+      - process: PRC-CATHETERIO
+      - process: PRC-CASERECORDER
+    subscribers:
+      - process: PRC-HEALTHMON
+        function: FN-HM-HB
+        pattern: peer.heartbeat.*
+        handler: HeartbeatCheck.on_peer_heartbeat
+    payload: [instance, sequence, emit_period_s]
+    expectedPublishRate: every emit period, 1.0 s with the shipped configuration
+    consumerEffect: >-
+      An accepted message calls refresh on the timer instance held for that peer. A message whose
+      sequence is at or below the last recorded sequence for that peer is discarded as stale or
+      replayed and calls nothing.
+
+interfaces:
+  - id: IF-HM-GENCTL
+    name: Health monitor and generator control
+    source: PRC-HEALTHMON
+    target: PRC-GENERATORCTL
+    forwardTopics: [TOP-HEALTH-RAM, TOP-HEALTH-DISK, TOP-HEALTH-HEARTBEAT, TOP-HEALTH-QUORUM, TOP-PEER-HEARTBEAT-SELF]
+    reverseTopics: [TOP-PEER-HEARTBEAT-PEERS]
+    sourceFunctions: [FN-HM-RAM, FN-HM-DISK, FN-HM-HB]
+    targetFunctions: []
+  - id: IF-HM-MAPENG
+    name: Health monitor and mapping engine
+    source: PRC-HEALTHMON
+    target: PRC-MAPPINGENGINE
+    forwardTopics: [TOP-HEALTH-RAM, TOP-HEALTH-DISK, TOP-HEALTH-HEARTBEAT, TOP-HEALTH-QUORUM, TOP-PEER-HEARTBEAT-SELF]
+    reverseTopics: [TOP-PEER-HEARTBEAT-PEERS]
+    sourceFunctions: [FN-HM-RAM, FN-HM-DISK, FN-HM-HB]
+    targetFunctions: []
+  - id: IF-HM-CATHIO
+    name: Health monitor and catheter IO
+    source: PRC-HEALTHMON
+    target: PRC-CATHETERIO
+    forwardTopics: [TOP-HEALTH-RAM, TOP-HEALTH-DISK, TOP-HEALTH-HEARTBEAT, TOP-HEALTH-QUORUM, TOP-PEER-HEARTBEAT-SELF]
+    reverseTopics: [TOP-PEER-HEARTBEAT-PEERS]
+    sourceFunctions: [FN-HM-RAM, FN-HM-DISK, FN-HM-HB]
+    targetFunctions: []
+  - id: IF-HM-CASEREC
+    name: Health monitor and case recorder
+    source: PRC-HEALTHMON
+    target: PRC-CASERECORDER
+    forwardTopics: [TOP-HEALTH-RAM, TOP-HEALTH-DISK, TOP-HEALTH-HEARTBEAT, TOP-HEALTH-QUORUM, TOP-PEER-HEARTBEAT-SELF]
+    reverseTopics: [TOP-PEER-HEARTBEAT-PEERS]
+    sourceFunctions: [FN-HM-RAM, FN-HM-DISK, FN-HM-HB]
+    targetFunctions: []
+    sharedHardwareNote: >-
+      This pair also shares HWB-STORAGE. PRC-CASERECORDER writes procedure records to the console
+      store and FN-HM-DISK probes the same mount points, including /var/lib/cases.

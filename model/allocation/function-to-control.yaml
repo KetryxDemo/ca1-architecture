@@ -1,0 +1,246 @@
+schema: architecture.allocation.forward.v1
+file: model/allocation/function-to-control.yaml
+
+about: >-
+  Forward allocation index. For each system function, the design control ids allocated to it, and
+  the source modules it is realized from. Design control content - requirement text, risk
+  statements, test steps - is not held here. It lives in Ketryx. This file holds the allocation
+  only, so that an agent can go from a function or a source path to the set of ids it must consult.
+
+controlItemTypes:
+  - prefix: RQ
+    ketryxItemType: REQUIREMENT
+    layer: LYR-REQ
+    role: requirement
+  - prefix: RSK
+    ketryxItemType: RISK
+    layer: LYR-SAFETY
+    role: risk
+  - prefix: RC
+    ketryxItemType: REQUIREMENT
+    layer: LYR-REQ
+    role: risk control
+    roleExpressedBy: >-
+      The built-in IS_RISK_CONTROLLED_BY relation, with the risk as source and the requirement as
+      target. There is no separate risk control item type; RC- is a naming convention in this
+      model for the requirements that carry that role.
+  - prefix: TC
+    ketryxItemType: TEST_PROTOCOL
+    layer: LYR-VV
+    role: verification spec / test case
+
+allocations:
+  - function: FN-HM-RAM
+    functionFile: model/functions/FN-HM-RAM.yaml
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-MEMINTEGRITY
+      path: src/health_monitor/checks/memory_integrity.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+        note: PeriodicCheck base class of all three checks
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+        note: timer constructed and polled by all three checks
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+        note: transport for every published result
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+        note: CheckResult, CheckStats and HealthState used by all three checks
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+        note: one loader, one file, disjoint sections per check
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+        note: constructs and services all three checks
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+        note: log record formatting for all three checks
+    requirements: [RQ-HM-01, RQ-HM-02, RQ-HM-03]
+    risks: [RSK-HM-01, RSK-HM-02]
+    riskControlRequirements: [RC-HM-01]
+    verifications: [TC-HM-01, TC-HM-02, TC-HM-03]
+
+  - function: FN-HM-DISK
+    functionFile: model/functions/FN-HM-DISK.yaml
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-STORAGEHEALTH
+      path: src/health_monitor/checks/storage_health.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+        note: PeriodicCheck base class of all three checks
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+        note: timer constructed and polled by all three checks
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+        note: transport for every published result
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+        note: CheckResult, CheckStats and HealthState used by all three checks
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+        note: one loader, one file, disjoint sections per check
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+        note: constructs and services all three checks
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+        note: log record formatting for all three checks
+    requirements: [RQ-HM-04, RQ-HM-05, RQ-HM-06]
+    risks: [RSK-HM-03]
+    riskControlRequirements: [RC-HM-02]
+    verifications: [TC-HM-04, TC-HM-05, TC-HM-06]
+
+  - function: FN-HM-HB
+    functionFile: model/functions/FN-HM-HB.yaml
+    owningProcess: PRC-HEALTHMON
+    primaryModule:
+      module: MOD-HEARTBEAT
+      path: src/health_monitor/checks/heartbeat.py
+      exclusiveToThisFunction: true
+    sharedModules:
+      - module: MOD-CHECKBASE
+        path: src/health_monitor/checks/base.py
+        note: PeriodicCheck base class of all three checks
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+        note: timer constructed and polled by all three checks
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+        note: transport for every published result
+      - module: MOD-TYPES
+        path: src/health_monitor/common/types.py
+        note: CheckResult, CheckStats and HealthState used by all three checks
+      - module: MOD-CONFIG
+        path: src/health_monitor/config.py
+        note: one loader, one file, disjoint sections per check
+      - module: MOD-SERVICE
+        path: src/health_monitor/service.py
+        note: constructs and services all three checks
+      - module: MOD-LOGSETUP
+        path: src/health_monitor/logging_setup.py
+        note: log record formatting for all three checks
+    requirements: [RQ-HM-07, RQ-HM-08, RQ-HM-09]
+    risks: [RSK-HM-04, RSK-HM-05]
+    riskControlRequirements: [RC-HM-03, RC-HM-04]
+    verifications: [TC-HM-07, TC-HM-08, TC-HM-09]
+
+moduleToControlIndex:
+  about: >-
+    From a changed source path to the design control ids that path can reach. `controls` is the
+    union over every function the module is realized into. For a module marked
+    sharedAcrossFunctions, the union is the widest possible answer and is a starting point, not a
+    result. Narrow it with `narrowWith` before treating the whole union as in scope.
+  entries:
+    - module: MOD-MEMINTEGRITY
+      path: src/health_monitor/checks/memory_integrity.py
+      functions: [FN-HM-RAM]
+      controls: [RQ-HM-01, RQ-HM-02, RQ-HM-03, RSK-HM-01, RSK-HM-02, RC-HM-01, TC-HM-01, TC-HM-02, TC-HM-03]
+      sharedAcrossFunctions: false
+    - module: MOD-STORAGEHEALTH
+      path: src/health_monitor/checks/storage_health.py
+      functions: [FN-HM-DISK]
+      controls: [RQ-HM-04, RQ-HM-05, RQ-HM-06, RSK-HM-03, RC-HM-02, TC-HM-04, TC-HM-05, TC-HM-06]
+      sharedAcrossFunctions: false
+    - module: MOD-HEARTBEAT
+      path: src/health_monitor/checks/heartbeat.py
+      functions: [FN-HM-HB]
+      controls: [RQ-HM-07, RQ-HM-08, RQ-HM-09, RSK-HM-04, RSK-HM-05, RC-HM-03, RC-HM-04, TC-HM-07, TC-HM-08, TC-HM-09]
+      sharedAcrossFunctions: false
+    - module: MOD-CHECKBASE
+      path: src/health_monitor/checks/base.py
+      functions: [FN-HM-RAM, FN-HM-DISK, FN-HM-HB]
+      controls: [RQ-HM-01, RQ-HM-02, RQ-HM-03, RSK-HM-01, RSK-HM-02, RC-HM-01, TC-HM-01, TC-HM-02, TC-HM-03, RQ-HM-04, RQ-HM-05, RQ-HM-06, RSK-HM-03, RC-HM-02, TC-HM-04, TC-HM-05, TC-HM-06, RQ-HM-07, RQ-HM-08, RQ-HM-09, RSK-HM-04, RSK-HM-05, RC-HM-03, RC-HM-04, TC-HM-07, TC-HM-08, TC-HM-09]
+      sharedAcrossFunctions: true
+      narrowWith:
+        - model/modules/module-index.yaml, the apiGroups block on this module - which group the changed members belong to
+        - the callSites, sectionsByFunction or usedByFunctions block on this module, for which functions reach that group
+    - module: MOD-INTERVALTIMER
+      path: src/health_monitor/common/interval_timer.py
+      functions: [FN-HM-RAM, FN-HM-DISK, FN-HM-HB]
+      controls: [RQ-HM-01, RQ-HM-02, RQ-HM-03, RSK-HM-01, RSK-HM-02, RC-HM-01, TC-HM-01, TC-HM-02, TC-HM-03, RQ-HM-04, RQ-HM-05, RQ-HM-06, RSK-HM-03, RC-HM-02, TC-HM-04, TC-HM-05, TC-HM-06, RQ-HM-07, RQ-HM-08, RQ-HM-09, RSK-HM-04, RSK-HM-05, RC-HM-03, RC-HM-04, TC-HM-07, TC-HM-08, TC-HM-09]
+      sharedAcrossFunctions: true
+      narrowWith:
+        - model/modules/module-index.yaml MOD-INTERVALTIMER apiGroups - which group the changed members belong to, and the condition under which that group is live
+        - model/modules/module-index.yaml MOD-INTERVALTIMER constructionSites - the arguments each function passes at each construction site
+        - model/modules/module-index.yaml MOD-INTERVALTIMER memberReadSites - the members each function reads, per instance
+        - model/analysis/n2-matrix.yaml N2-HEALTHMON - the same facts arranged per function pair
+    - module: MOD-BUS
+      path: src/health_monitor/bus.py
+      functions: [FN-HM-RAM, FN-HM-DISK, FN-HM-HB]
+      controls: [RQ-HM-01, RQ-HM-02, RQ-HM-03, RSK-HM-01, RSK-HM-02, RC-HM-01, TC-HM-01, TC-HM-02, TC-HM-03, RQ-HM-04, RQ-HM-05, RQ-HM-06, RSK-HM-03, RC-HM-02, TC-HM-04, TC-HM-05, TC-HM-06, RQ-HM-07, RQ-HM-08, RQ-HM-09, RSK-HM-04, RSK-HM-05, RC-HM-03, RC-HM-04, TC-HM-07, TC-HM-08, TC-HM-09]
+      sharedAcrossFunctions: true
+      narrowWith:
+        - model/modules/module-index.yaml, the apiGroups block on this module - which group the changed members belong to
+        - the callSites, sectionsByFunction or usedByFunctions block on this module, for which functions reach that group
+    - module: MOD-TYPES
+      path: src/health_monitor/common/types.py
+      functions: [FN-HM-RAM, FN-HM-DISK, FN-HM-HB]
+      controls: [RQ-HM-01, RQ-HM-02, RQ-HM-03, RSK-HM-01, RSK-HM-02, RC-HM-01, TC-HM-01, TC-HM-02, TC-HM-03, RQ-HM-04, RQ-HM-05, RQ-HM-06, RSK-HM-03, RC-HM-02, TC-HM-04, TC-HM-05, TC-HM-06, RQ-HM-07, RQ-HM-08, RQ-HM-09, RSK-HM-04, RSK-HM-05, RC-HM-03, RC-HM-04, TC-HM-07, TC-HM-08, TC-HM-09]
+      sharedAcrossFunctions: true
+      narrowWith:
+        - model/modules/module-index.yaml, the apiGroups block on this module - which group the changed members belong to
+        - the callSites, sectionsByFunction or usedByFunctions block on this module, for which functions reach that group
+    - module: MOD-CONFIG
+      path: src/health_monitor/config.py
+      functions: [FN-HM-RAM, FN-HM-DISK, FN-HM-HB]
+      controls: [RQ-HM-01, RQ-HM-02, RQ-HM-03, RSK-HM-01, RSK-HM-02, RC-HM-01, TC-HM-01, TC-HM-02, TC-HM-03, RQ-HM-04, RQ-HM-05, RQ-HM-06, RSK-HM-03, RC-HM-02, TC-HM-04, TC-HM-05, TC-HM-06, RQ-HM-07, RQ-HM-08, RQ-HM-09, RSK-HM-04, RSK-HM-05, RC-HM-03, RC-HM-04, TC-HM-07, TC-HM-08, TC-HM-09]
+      sharedAcrossFunctions: true
+      narrowWith:
+        - model/modules/module-index.yaml MOD-CONFIG sectionsByFunction - a change confined to one section reaches the function that owns that section; a change to the loader or the file schema reaches all three
+    - module: MOD-SERVICE
+      path: src/health_monitor/service.py
+      functions: [FN-HM-RAM, FN-HM-DISK, FN-HM-HB]
+      controls: [RQ-HM-01, RQ-HM-02, RQ-HM-03, RSK-HM-01, RSK-HM-02, RC-HM-01, TC-HM-01, TC-HM-02, TC-HM-03, RQ-HM-04, RQ-HM-05, RQ-HM-06, RSK-HM-03, RC-HM-02, TC-HM-04, TC-HM-05, TC-HM-06, RQ-HM-07, RQ-HM-08, RQ-HM-09, RSK-HM-04, RSK-HM-05, RC-HM-03, RC-HM-04, TC-HM-07, TC-HM-08, TC-HM-09]
+      sharedAcrossFunctions: true
+      narrowWith:
+        - model/modules/module-index.yaml, the apiGroups block on this module - which group the changed members belong to
+        - the callSites, sectionsByFunction or usedByFunctions block on this module, for which functions reach that group
+    - module: MOD-LOGSETUP
+      path: src/health_monitor/logging_setup.py
+      functions: [FN-HM-RAM, FN-HM-DISK, FN-HM-HB]
+      controls: [RQ-HM-01, RQ-HM-02, RQ-HM-03, RSK-HM-01, RSK-HM-02, RC-HM-01, TC-HM-01, TC-HM-02, TC-HM-03, RQ-HM-04, RQ-HM-05, RQ-HM-06, RSK-HM-03, RC-HM-02, TC-HM-04, TC-HM-05, TC-HM-06, RQ-HM-07, RQ-HM-08, RQ-HM-09, RSK-HM-04, RSK-HM-05, RC-HM-03, RC-HM-04, TC-HM-07, TC-HM-08, TC-HM-09]
+      sharedAcrossFunctions: true
+      narrowWith:
+        - model/modules/module-index.yaml, the apiGroups block on this module - which group the changed members belong to
+        - the callSites, sectionsByFunction or usedByFunctions block on this module, for which functions reach that group
+
+resolutionProcedure:
+  about: >-
+    The steps to take from a change to the set of control ids in scope. The model supplies facts
+    at each step; the conclusion is not recorded anywhere in the model.
+  steps:
+    - step: 1
+      action: Identify what changed - a source path, a set of module members, a topic, or a configuration key.
+    - step: 2
+      action: >-
+        Look the path up in moduleToControlIndex above. If sharedAcrossFunctions is false, the
+        listed controls are the answer.
+    - step: 3
+      action: >-
+        If sharedAcrossFunctions is true, follow narrowWith. Determine which API group the changed
+        members belong to and read that group's activation condition.
+    - step: 4
+      action: >-
+        For each function, compare the activation condition against that function's recorded
+        construction arguments and the members it reads. Both are recorded per function and per
+        instance in model/modules/module-index.yaml and in the timerUsage block of each function file.
+    - step: 5
+      action: >-
+        Check the thresholdsAndWindows recorded on each primary module. The key name says nothing
+        about where a threshold is evaluated. Read the relationToIntervalTimer field on each
+        entry - some are measured and evaluated inside the function on their own clock, and at
+        least one is handed to the shared module as a constructor argument instead.
+    - step: 6
+      action: Carry the resulting function set back through the allocations above for the control ids.
+    - step: 7
+      action: >-
+        For anything crossing a process boundary, use N2-PRC in model/analysis/n2-matrix.yaml and
+        model/interfaces/topics.yaml, and respect the evidenceBoundary recorded on that matrix.

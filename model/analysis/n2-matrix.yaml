@@ -1,0 +1,975 @@
+schema: architecture.n2matrix.v1
+file: model/analysis/n2-matrix.yaml
+
+about: >-
+  N-squared interaction matrices. Two matrices are held here - one over the system functions owned
+  by PRC-HEALTHMON, and one over the five software processes. A matrix records what couples one
+  element to another and through which mechanism, as observed facts about each side. It does not
+  record the consequence of any particular change, and it does not carry a precomputed verdict on
+  which side a change to a shared module reaches. Resolving that is the reader's work, from the
+  facts recorded here together with the activation conditions in model/modules/module-index.yaml.
+
+couplingKinds:
+  - id: CPL-SHAREDMODULE
+    name: Shared source module
+    definition: >-
+      Both elements are realized in part by the same source module. A shared module entry records
+      what each side does with the module - how many instances it constructs, with what arguments,
+      which members it reads, which methods it calls - under rowUsage and columnUsage. Sharing a
+      module is not the same as sharing the part of it that changed.
+  - id: CPL-DATAFLOW
+    name: Data flow
+    definition: An output produced by the row element is an input consumed by the column element.
+  - id: CPL-TOPIC
+    name: Shared topic
+    definition: Both elements publish to, or subscribe from, the same topic.
+  - id: CPL-RESOURCE
+    name: Shared runtime resource
+    definition: >-
+      Both elements share or contend for the same runtime resource - the control-loop thread, the
+      process lifetime, a configuration file, a bus instance, a hardware device.
+
+matrices:
+
+  - id: N2-HEALTHMON
+    name: N-squared matrix, health monitor system functions
+    scope: The three system functions owned by PRC-HEALTHMON.
+    axes:
+      rows: [FN-HM-RAM, FN-HM-DISK, FN-HM-HB]
+      columns: [FN-HM-RAM, FN-HM-DISK, FN-HM-HB]
+    reading: >-
+      Row is the element under change. Column is the element evaluated against it. Diagonal cells
+      are omitted. Cells are directed, so the row-to-column cell and the column-to-row cell are
+      both present with the usage facts swapped.
+    cells:
+      - id: N2-RAM-DISK
+        row: FN-HM-RAM
+        column: FN-HM-DISK
+        sharedModules:
+          - module: MOD-INTERVALTIMER
+            path: src/health_monitor/common/interval_timer.py
+            reachedIdentically: true
+            reachedIdenticallyNote: >-
+              Both functions import this module, construct at least one IntervalTimer inside their
+              own constructor, and have an instance polled once per control-loop iteration through
+              PeriodicCheck.service. An import graph, a call graph over poll, or a path search does
+              not separate them.
+            rowUsage:
+              function: FN-HM-RAM
+              instanceCount: 1
+              instanceNames: [ram-sweep]
+              constructorArgsByInstance:
+                ram-sweep:
+                  period_s: config.scan_period_s (memory.scan_period_s = 5.0)
+                  expiry_s: not supplied
+                  start_due: true
+              tickMembersRead: [due, overdue_by, missed_slots, now]
+              timerMethodsCalled: [poll, mark_serviced]
+              thresholdsAndWindowsHeldBySide:
+                - slice_budget_ms = 1.5, measured on budget_clock (time.perf_counter), evaluated in MemoryIntegrityCheck._advance_slice
+            columnUsage:
+              function: FN-HM-DISK
+              instanceCount: 1
+              instanceNames: [disk-scan]
+              constructorArgsByInstance:
+                disk-scan:
+                  period_s: config.scan_period_s (storage.scan_period_s = 30.0)
+                  expiry_s: not supplied
+                  start_due: true
+              tickMembersRead: [due, now]
+              timerMethodsCalled: [poll, mark_serviced]
+              thresholdsAndWindowsHeldBySide:
+                - stall_threshold_s = 120.0, measured on StorageHealthCheck._stale_for over the per mount _last_good_probe map, evaluated in StorageHealthCheck._evaluate
+                - probe_latency_warn_ms = 40.0 and probe_latency_fault_ms = 250.0, measured on FilesystemProbe latency_clock (time.perf_counter)
+            resolveWith:
+              - file: model/modules/module-index.yaml
+                key: MOD-INTERVALTIMER apiGroups
+                gives: the members of each group and the condition under which each group is live
+              - file: model/modules/module-index.yaml
+                key: MOD-INTERVALTIMER constructionSites
+                gives: the arguments passed at every site, per function and per instance
+              - file: model/modules/module-index.yaml
+                key: MOD-INTERVALTIMER memberReadSites
+                gives: the TimerTick members each function reads, per instance
+            resolutionNote: >-
+              This cell records what each side does with the module. It does not record which group
+              a given change reaches. That follows from the activation condition of the group
+              changed, the constructor arguments at each site, and the members each side reads.
+          - module: MOD-CHECKBASE
+            path: src/health_monitor/checks/base.py
+            reachedIdentically: true
+            relationship: both functions are subclasses of PeriodicCheck
+            rowUsage:
+              function: FN-HM-RAM
+              groups: [BHV-CHECK-SERVICE, BHV-CHECK-PUBLISH]
+              tickHandling: receives the whole TimerTick from service, uninterpreted
+            columnUsage:
+              function: FN-HM-DISK
+              groups: [BHV-CHECK-SERVICE, BHV-CHECK-PUBLISH]
+              tickHandling: receives the whole TimerTick from service, uninterpreted
+            note: >-
+              The base class reads TimerTick.missed_slots and TimerTick.now and nothing else. It
+              does not decide whether a check runs and does not acknowledge the cadence slot, so
+              no distinction between the two sides exists at this layer.
+          - module: MOD-BUS
+            path: src/health_monitor/bus.py
+            rowUsage:
+              function: FN-HM-RAM
+              groups: [BHV-BUS-PUB]
+              via: publication through PeriodicCheck._publish only
+            columnUsage:
+              function: FN-HM-DISK
+              groups: [BHV-BUS-PUB]
+              via: publication through PeriodicCheck._publish only
+          - module: MOD-TYPES
+            path: src/health_monitor/common/types.py
+            reachedIdentically: true
+            note: Both sides build CheckResult values and are named on the bus by CheckResult.topic.
+          - module: MOD-CONFIG
+            path: src/health_monitor/config.py
+            reachedIdentically: false
+            rowSection: memory, MemoryCheckConfig
+            columnSection: storage, StorageCheckConfig
+            note: >-
+              One file and one loader, disjoint sections. A change to the loader or the file schema
+              reaches both sides; a change to one section's fields reaches the side that owns it.
+          - module: MOD-SERVICE
+            path: src/health_monitor/service.py
+            reachedIdentically: true
+            note: >-
+              build_checks constructs both sides and step services both on every iteration in
+              construction order. _sleep_budget takes the minimum of seconds_until_due across every
+              check's timer, so each side's cadence influences how long the loop sleeps for both.
+        sharedRuntimeResources:
+          - the single control-loop thread of PRC-HEALTHMON
+          - the PRC-HEALTHMON process lifetime
+          - config/health-monitor.json
+          - the MessageBus instance and its delivery queue
+        dataFlow: []
+        sharedTopics: []
+        topicNamespaceNote: >-
+          Both sides publish under the health. namespace through the same CheckResult.topic rule,
+          on disjoint topic names.
+
+      - id: N2-DISK-RAM
+        row: FN-HM-DISK
+        column: FN-HM-RAM
+        mirrorOf: N2-RAM-DISK
+        sharedModules:
+          - module: MOD-INTERVALTIMER
+            path: src/health_monitor/common/interval_timer.py
+            reachedIdentically: true
+            reachedIdenticallyNote: >-
+              Both functions import this module, construct at least one IntervalTimer inside their
+              own constructor, and have an instance polled once per control-loop iteration through
+              PeriodicCheck.service. An import graph, a call graph over poll, or a path search does
+              not separate them.
+            rowUsage:
+              function: FN-HM-DISK
+              instanceCount: 1
+              instanceNames: [disk-scan]
+              constructorArgsByInstance:
+                disk-scan:
+                  period_s: config.scan_period_s (storage.scan_period_s = 30.0)
+                  expiry_s: not supplied
+                  start_due: true
+              tickMembersRead: [due, now]
+              timerMethodsCalled: [poll, mark_serviced]
+              thresholdsAndWindowsHeldBySide:
+                - stall_threshold_s = 120.0, measured on StorageHealthCheck._stale_for over the per mount _last_good_probe map, evaluated in StorageHealthCheck._evaluate
+                - probe_latency_warn_ms = 40.0 and probe_latency_fault_ms = 250.0, measured on FilesystemProbe latency_clock (time.perf_counter)
+            columnUsage:
+              function: FN-HM-RAM
+              instanceCount: 1
+              instanceNames: [ram-sweep]
+              constructorArgsByInstance:
+                ram-sweep:
+                  period_s: config.scan_period_s (memory.scan_period_s = 5.0)
+                  expiry_s: not supplied
+                  start_due: true
+              tickMembersRead: [due, overdue_by, missed_slots, now]
+              timerMethodsCalled: [poll, mark_serviced]
+              thresholdsAndWindowsHeldBySide:
+                - slice_budget_ms = 1.5, measured on budget_clock (time.perf_counter), evaluated in MemoryIntegrityCheck._advance_slice
+            resolveWith:
+              - file: model/modules/module-index.yaml
+                key: MOD-INTERVALTIMER apiGroups
+                gives: the members of each group and the condition under which each group is live
+              - file: model/modules/module-index.yaml
+                key: MOD-INTERVALTIMER constructionSites
+                gives: the arguments passed at every site, per function and per instance
+              - file: model/modules/module-index.yaml
+                key: MOD-INTERVALTIMER memberReadSites
+                gives: the TimerTick members each function reads, per instance
+            resolutionNote: >-
+              This cell records what each side does with the module. It does not record which group
+              a given change reaches. That follows from the activation condition of the group
+              changed, the constructor arguments at each site, and the members each side reads.
+          - module: MOD-CHECKBASE
+            path: src/health_monitor/checks/base.py
+            reachedIdentically: true
+            relationship: both functions are subclasses of PeriodicCheck
+            rowUsage:
+              function: FN-HM-DISK
+              groups: [BHV-CHECK-SERVICE, BHV-CHECK-PUBLISH]
+              tickHandling: receives the whole TimerTick from service, uninterpreted
+            columnUsage:
+              function: FN-HM-RAM
+              groups: [BHV-CHECK-SERVICE, BHV-CHECK-PUBLISH]
+              tickHandling: receives the whole TimerTick from service, uninterpreted
+            note: >-
+              The base class reads TimerTick.missed_slots and TimerTick.now and nothing else. It
+              does not decide whether a check runs and does not acknowledge the cadence slot, so
+              no distinction between the two sides exists at this layer.
+          - module: MOD-BUS
+            path: src/health_monitor/bus.py
+            rowUsage:
+              function: FN-HM-DISK
+              groups: [BHV-BUS-PUB]
+              via: publication through PeriodicCheck._publish only
+            columnUsage:
+              function: FN-HM-RAM
+              groups: [BHV-BUS-PUB]
+              via: publication through PeriodicCheck._publish only
+          - module: MOD-TYPES
+            path: src/health_monitor/common/types.py
+            reachedIdentically: true
+            note: Both sides build CheckResult values and are named on the bus by CheckResult.topic.
+          - module: MOD-CONFIG
+            path: src/health_monitor/config.py
+            reachedIdentically: false
+            rowSection: storage, StorageCheckConfig
+            columnSection: memory, MemoryCheckConfig
+            note: >-
+              One file and one loader, disjoint sections. A change to the loader or the file schema
+              reaches both sides; a change to one section's fields reaches the side that owns it.
+          - module: MOD-SERVICE
+            path: src/health_monitor/service.py
+            reachedIdentically: true
+            note: >-
+              build_checks constructs both sides and step services both on every iteration in
+              construction order. _sleep_budget takes the minimum of seconds_until_due across every
+              check's timer, so each side's cadence influences how long the loop sleeps for both.
+        sharedRuntimeResources:
+          - the single control-loop thread of PRC-HEALTHMON
+          - the PRC-HEALTHMON process lifetime
+          - config/health-monitor.json
+          - the MessageBus instance and its delivery queue
+        dataFlow: []
+        sharedTopics: []
+        topicNamespaceNote: >-
+          Both sides publish under the health. namespace through the same CheckResult.topic rule,
+          on disjoint topic names.
+
+      - id: N2-RAM-HB
+        row: FN-HM-RAM
+        column: FN-HM-HB
+        sharedModules:
+          - module: MOD-INTERVALTIMER
+            path: src/health_monitor/common/interval_timer.py
+            reachedIdentically: true
+            reachedIdenticallyNote: >-
+              Both functions import this module, construct at least one IntervalTimer inside their
+              own constructor, and have an instance polled once per control-loop iteration through
+              PeriodicCheck.service. An import graph, a call graph over poll, or a path search does
+              not separate them.
+            rowUsage:
+              function: FN-HM-RAM
+              instanceCount: 1
+              instanceNames: [ram-sweep]
+              constructorArgsByInstance:
+                ram-sweep:
+                  period_s: config.scan_period_s (memory.scan_period_s = 5.0)
+                  expiry_s: not supplied
+                  start_due: true
+              tickMembersRead: [due, overdue_by, missed_slots, now]
+              timerMethodsCalled: [poll, mark_serviced]
+              thresholdsAndWindowsHeldBySide:
+                - slice_budget_ms = 1.5, measured on budget_clock (time.perf_counter), evaluated in MemoryIntegrityCheck._advance_slice
+            columnUsage:
+              function: FN-HM-HB
+              instanceCount: one emit timer plus one per configured peer, five with the shipped configuration
+              instanceNames: [heartbeat-emit, peer-<peer>]
+              constructorArgsByInstance:
+                heartbeat-emit:
+                  period_s: config.emit_period_s (heartbeat.emit_period_s = 1.0)
+                  expiry_s: not supplied
+                  start_due: true
+                peer-<peer>:
+                  period_s: config.emit_period_s (heartbeat.emit_period_s = 1.0)
+                  expiry_s: config.peer_timeout_s (heartbeat.peer_timeout_s = 3.0)
+                  start_due: not supplied
+              tickMembersRead: {fromEmitTimer: [due, now], fromPeerTimers: [expired, time_since_refresh, now]}
+              timerMethodsCalled: [poll, mark_serviced, refresh]
+              thresholdsAndWindowsHeldBySide:
+                - peer_timeout_s = 3.0, handed to MOD-INTERVALTIMER as expiry_s at construction of each peer instance rather than evaluated in this function
+                - quorum_min_live = 3, measured on the count of peer records whose live flag is set, evaluated in HeartbeatCheck._evaluate_quorum
+            resolveWith:
+              - file: model/modules/module-index.yaml
+                key: MOD-INTERVALTIMER apiGroups
+                gives: the members of each group and the condition under which each group is live
+              - file: model/modules/module-index.yaml
+                key: MOD-INTERVALTIMER constructionSites
+                gives: the arguments passed at every site, per function and per instance
+              - file: model/modules/module-index.yaml
+                key: MOD-INTERVALTIMER memberReadSites
+                gives: the TimerTick members each function reads, per instance
+            resolutionNote: >-
+              This cell records what each side does with the module. It does not record which group
+              a given change reaches. That follows from the activation condition of the group
+              changed, the constructor arguments at each site, and the members each side reads.
+          - module: MOD-CHECKBASE
+            path: src/health_monitor/checks/base.py
+            reachedIdentically: true
+            relationship: both functions are subclasses of PeriodicCheck
+            rowUsage:
+              function: FN-HM-RAM
+              groups: [BHV-CHECK-SERVICE, BHV-CHECK-PUBLISH]
+              tickHandling: receives the whole TimerTick from service, uninterpreted
+            columnUsage:
+              function: FN-HM-HB
+              groups: [BHV-CHECK-SERVICE, BHV-CHECK-PUBLISH]
+              tickHandling: receives the whole TimerTick from service, uninterpreted
+            note: >-
+              The base class reads TimerTick.missed_slots and TimerTick.now and nothing else. It
+              does not decide whether a check runs and does not acknowledge the cadence slot, so
+              no distinction between the two sides exists at this layer.
+          - module: MOD-BUS
+            path: src/health_monitor/bus.py
+            rowUsage:
+              function: FN-HM-RAM
+              groups: [BHV-BUS-PUB]
+              via: publication through PeriodicCheck._publish only
+            columnUsage:
+              function: FN-HM-HB
+              groups: [BHV-BUS-PUB, BHV-BUS-SUB]
+              via: publication through PeriodicCheck._publish and directly through MessageBus.publish for the own heartbeat; subscription directly through MessageBus.subscribe in attach
+          - module: MOD-TYPES
+            path: src/health_monitor/common/types.py
+            reachedIdentically: true
+            note: Both sides build CheckResult values and are named on the bus by CheckResult.topic.
+          - module: MOD-CONFIG
+            path: src/health_monitor/config.py
+            reachedIdentically: false
+            rowSection: memory, MemoryCheckConfig
+            columnSection: heartbeat, HeartbeatCheckConfig
+            note: >-
+              One file and one loader, disjoint sections. A change to the loader or the file schema
+              reaches both sides; a change to one section's fields reaches the side that owns it.
+          - module: MOD-SERVICE
+            path: src/health_monitor/service.py
+            reachedIdentically: true
+            note: >-
+              build_checks constructs both sides and step services both on every iteration in
+              construction order. _sleep_budget takes the minimum of seconds_until_due across every
+              check's timer, so each side's cadence influences how long the loop sleeps for both.
+        sharedRuntimeResources:
+          - the single control-loop thread of PRC-HEALTHMON
+          - the PRC-HEALTHMON process lifetime
+          - config/health-monitor.json
+          - the MessageBus instance and its delivery queue
+        dataFlow: []
+        sharedTopics: []
+        topicNamespaceNote: >-
+          Both sides publish under the health. namespace through the same CheckResult.topic rule,
+          on disjoint topic names.
+
+      - id: N2-HB-RAM
+        row: FN-HM-HB
+        column: FN-HM-RAM
+        mirrorOf: N2-RAM-HB
+        sharedModules:
+          - module: MOD-INTERVALTIMER
+            path: src/health_monitor/common/interval_timer.py
+            reachedIdentically: true
+            reachedIdenticallyNote: >-
+              Both functions import this module, construct at least one IntervalTimer inside their
+              own constructor, and have an instance polled once per control-loop iteration through
+              PeriodicCheck.service. An import graph, a call graph over poll, or a path search does
+              not separate them.
+            rowUsage:
+              function: FN-HM-HB
+              instanceCount: one emit timer plus one per configured peer, five with the shipped configuration
+              instanceNames: [heartbeat-emit, peer-<peer>]
+              constructorArgsByInstance:
+                heartbeat-emit:
+                  period_s: config.emit_period_s (heartbeat.emit_period_s = 1.0)
+                  expiry_s: not supplied
+                  start_due: true
+                peer-<peer>:
+                  period_s: config.emit_period_s (heartbeat.emit_period_s = 1.0)
+                  expiry_s: config.peer_timeout_s (heartbeat.peer_timeout_s = 3.0)
+                  start_due: not supplied
+              tickMembersRead: {fromEmitTimer: [due, now], fromPeerTimers: [expired, time_since_refresh, now]}
+              timerMethodsCalled: [poll, mark_serviced, refresh]
+              thresholdsAndWindowsHeldBySide:
+                - peer_timeout_s = 3.0, handed to MOD-INTERVALTIMER as expiry_s at construction of each peer instance rather than evaluated in this function
+                - quorum_min_live = 3, measured on the count of peer records whose live flag is set, evaluated in HeartbeatCheck._evaluate_quorum
+            columnUsage:
+              function: FN-HM-RAM
+              instanceCount: 1
+              instanceNames: [ram-sweep]
+              constructorArgsByInstance:
+                ram-sweep:
+                  period_s: config.scan_period_s (memory.scan_period_s = 5.0)
+                  expiry_s: not supplied
+                  start_due: true
+              tickMembersRead: [due, overdue_by, missed_slots, now]
+              timerMethodsCalled: [poll, mark_serviced]
+              thresholdsAndWindowsHeldBySide:
+                - slice_budget_ms = 1.5, measured on budget_clock (time.perf_counter), evaluated in MemoryIntegrityCheck._advance_slice
+            resolveWith:
+              - file: model/modules/module-index.yaml
+                key: MOD-INTERVALTIMER apiGroups
+                gives: the members of each group and the condition under which each group is live
+              - file: model/modules/module-index.yaml
+                key: MOD-INTERVALTIMER constructionSites
+                gives: the arguments passed at every site, per function and per instance
+              - file: model/modules/module-index.yaml
+                key: MOD-INTERVALTIMER memberReadSites
+                gives: the TimerTick members each function reads, per instance
+            resolutionNote: >-
+              This cell records what each side does with the module. It does not record which group
+              a given change reaches. That follows from the activation condition of the group
+              changed, the constructor arguments at each site, and the members each side reads.
+          - module: MOD-CHECKBASE
+            path: src/health_monitor/checks/base.py
+            reachedIdentically: true
+            relationship: both functions are subclasses of PeriodicCheck
+            rowUsage:
+              function: FN-HM-HB
+              groups: [BHV-CHECK-SERVICE, BHV-CHECK-PUBLISH]
+              tickHandling: receives the whole TimerTick from service, uninterpreted
+            columnUsage:
+              function: FN-HM-RAM
+              groups: [BHV-CHECK-SERVICE, BHV-CHECK-PUBLISH]
+              tickHandling: receives the whole TimerTick from service, uninterpreted
+            note: >-
+              The base class reads TimerTick.missed_slots and TimerTick.now and nothing else. It
+              does not decide whether a check runs and does not acknowledge the cadence slot, so
+              no distinction between the two sides exists at this layer.
+          - module: MOD-BUS
+            path: src/health_monitor/bus.py
+            rowUsage:
+              function: FN-HM-HB
+              groups: [BHV-BUS-PUB, BHV-BUS-SUB]
+              via: publication through PeriodicCheck._publish and directly through MessageBus.publish for the own heartbeat; subscription directly through MessageBus.subscribe in attach
+            columnUsage:
+              function: FN-HM-RAM
+              groups: [BHV-BUS-PUB]
+              via: publication through PeriodicCheck._publish only
+          - module: MOD-TYPES
+            path: src/health_monitor/common/types.py
+            reachedIdentically: true
+            note: Both sides build CheckResult values and are named on the bus by CheckResult.topic.
+          - module: MOD-CONFIG
+            path: src/health_monitor/config.py
+            reachedIdentically: false
+            rowSection: heartbeat, HeartbeatCheckConfig
+            columnSection: memory, MemoryCheckConfig
+            note: >-
+              One file and one loader, disjoint sections. A change to the loader or the file schema
+              reaches both sides; a change to one section's fields reaches the side that owns it.
+          - module: MOD-SERVICE
+            path: src/health_monitor/service.py
+            reachedIdentically: true
+            note: >-
+              build_checks constructs both sides and step services both on every iteration in
+              construction order. _sleep_budget takes the minimum of seconds_until_due across every
+              check's timer, so each side's cadence influences how long the loop sleeps for both.
+        sharedRuntimeResources:
+          - the single control-loop thread of PRC-HEALTHMON
+          - the PRC-HEALTHMON process lifetime
+          - config/health-monitor.json
+          - the MessageBus instance and its delivery queue
+        dataFlow: []
+        sharedTopics: []
+        topicNamespaceNote: >-
+          Both sides publish under the health. namespace through the same CheckResult.topic rule,
+          on disjoint topic names.
+
+      - id: N2-DISK-HB
+        row: FN-HM-DISK
+        column: FN-HM-HB
+        sharedModules:
+          - module: MOD-INTERVALTIMER
+            path: src/health_monitor/common/interval_timer.py
+            reachedIdentically: true
+            reachedIdenticallyNote: >-
+              Both functions import this module, construct at least one IntervalTimer inside their
+              own constructor, and have an instance polled once per control-loop iteration through
+              PeriodicCheck.service. An import graph, a call graph over poll, or a path search does
+              not separate them.
+            rowUsage:
+              function: FN-HM-DISK
+              instanceCount: 1
+              instanceNames: [disk-scan]
+              constructorArgsByInstance:
+                disk-scan:
+                  period_s: config.scan_period_s (storage.scan_period_s = 30.0)
+                  expiry_s: not supplied
+                  start_due: true
+              tickMembersRead: [due, now]
+              timerMethodsCalled: [poll, mark_serviced]
+              thresholdsAndWindowsHeldBySide:
+                - stall_threshold_s = 120.0, measured on StorageHealthCheck._stale_for over the per mount _last_good_probe map, evaluated in StorageHealthCheck._evaluate
+                - probe_latency_warn_ms = 40.0 and probe_latency_fault_ms = 250.0, measured on FilesystemProbe latency_clock (time.perf_counter)
+            columnUsage:
+              function: FN-HM-HB
+              instanceCount: one emit timer plus one per configured peer, five with the shipped configuration
+              instanceNames: [heartbeat-emit, peer-<peer>]
+              constructorArgsByInstance:
+                heartbeat-emit:
+                  period_s: config.emit_period_s (heartbeat.emit_period_s = 1.0)
+                  expiry_s: not supplied
+                  start_due: true
+                peer-<peer>:
+                  period_s: config.emit_period_s (heartbeat.emit_period_s = 1.0)
+                  expiry_s: config.peer_timeout_s (heartbeat.peer_timeout_s = 3.0)
+                  start_due: not supplied
+              tickMembersRead: {fromEmitTimer: [due, now], fromPeerTimers: [expired, time_since_refresh, now]}
+              timerMethodsCalled: [poll, mark_serviced, refresh]
+              thresholdsAndWindowsHeldBySide:
+                - peer_timeout_s = 3.0, handed to MOD-INTERVALTIMER as expiry_s at construction of each peer instance rather than evaluated in this function
+                - quorum_min_live = 3, measured on the count of peer records whose live flag is set, evaluated in HeartbeatCheck._evaluate_quorum
+            resolveWith:
+              - file: model/modules/module-index.yaml
+                key: MOD-INTERVALTIMER apiGroups
+                gives: the members of each group and the condition under which each group is live
+              - file: model/modules/module-index.yaml
+                key: MOD-INTERVALTIMER constructionSites
+                gives: the arguments passed at every site, per function and per instance
+              - file: model/modules/module-index.yaml
+                key: MOD-INTERVALTIMER memberReadSites
+                gives: the TimerTick members each function reads, per instance
+            resolutionNote: >-
+              This cell records what each side does with the module. It does not record which group
+              a given change reaches. That follows from the activation condition of the group
+              changed, the constructor arguments at each site, and the members each side reads.
+          - module: MOD-CHECKBASE
+            path: src/health_monitor/checks/base.py
+            reachedIdentically: true
+            relationship: both functions are subclasses of PeriodicCheck
+            rowUsage:
+              function: FN-HM-DISK
+              groups: [BHV-CHECK-SERVICE, BHV-CHECK-PUBLISH]
+              tickHandling: receives the whole TimerTick from service, uninterpreted
+            columnUsage:
+              function: FN-HM-HB
+              groups: [BHV-CHECK-SERVICE, BHV-CHECK-PUBLISH]
+              tickHandling: receives the whole TimerTick from service, uninterpreted
+            note: >-
+              The base class reads TimerTick.missed_slots and TimerTick.now and nothing else. It
+              does not decide whether a check runs and does not acknowledge the cadence slot, so
+              no distinction between the two sides exists at this layer.
+          - module: MOD-BUS
+            path: src/health_monitor/bus.py
+            rowUsage:
+              function: FN-HM-DISK
+              groups: [BHV-BUS-PUB]
+              via: publication through PeriodicCheck._publish only
+            columnUsage:
+              function: FN-HM-HB
+              groups: [BHV-BUS-PUB, BHV-BUS-SUB]
+              via: publication through PeriodicCheck._publish and directly through MessageBus.publish for the own heartbeat; subscription directly through MessageBus.subscribe in attach
+          - module: MOD-TYPES
+            path: src/health_monitor/common/types.py
+            reachedIdentically: true
+            note: Both sides build CheckResult values and are named on the bus by CheckResult.topic.
+          - module: MOD-CONFIG
+            path: src/health_monitor/config.py
+            reachedIdentically: false
+            rowSection: storage, StorageCheckConfig
+            columnSection: heartbeat, HeartbeatCheckConfig
+            note: >-
+              One file and one loader, disjoint sections. A change to the loader or the file schema
+              reaches both sides; a change to one section's fields reaches the side that owns it.
+          - module: MOD-SERVICE
+            path: src/health_monitor/service.py
+            reachedIdentically: true
+            note: >-
+              build_checks constructs both sides and step services both on every iteration in
+              construction order. _sleep_budget takes the minimum of seconds_until_due across every
+              check's timer, so each side's cadence influences how long the loop sleeps for both.
+        sharedRuntimeResources:
+          - the single control-loop thread of PRC-HEALTHMON
+          - the PRC-HEALTHMON process lifetime
+          - config/health-monitor.json
+          - the MessageBus instance and its delivery queue
+        dataFlow: []
+        sharedTopics: []
+        topicNamespaceNote: >-
+          Both sides publish under the health. namespace through the same CheckResult.topic rule,
+          on disjoint topic names.
+
+      - id: N2-HB-DISK
+        row: FN-HM-HB
+        column: FN-HM-DISK
+        mirrorOf: N2-DISK-HB
+        sharedModules:
+          - module: MOD-INTERVALTIMER
+            path: src/health_monitor/common/interval_timer.py
+            reachedIdentically: true
+            reachedIdenticallyNote: >-
+              Both functions import this module, construct at least one IntervalTimer inside their
+              own constructor, and have an instance polled once per control-loop iteration through
+              PeriodicCheck.service. An import graph, a call graph over poll, or a path search does
+              not separate them.
+            rowUsage:
+              function: FN-HM-HB
+              instanceCount: one emit timer plus one per configured peer, five with the shipped configuration
+              instanceNames: [heartbeat-emit, peer-<peer>]
+              constructorArgsByInstance:
+                heartbeat-emit:
+                  period_s: config.emit_period_s (heartbeat.emit_period_s = 1.0)
+                  expiry_s: not supplied
+                  start_due: true
+                peer-<peer>:
+                  period_s: config.emit_period_s (heartbeat.emit_period_s = 1.0)
+                  expiry_s: config.peer_timeout_s (heartbeat.peer_timeout_s = 3.0)
+                  start_due: not supplied
+              tickMembersRead: {fromEmitTimer: [due, now], fromPeerTimers: [expired, time_since_refresh, now]}
+              timerMethodsCalled: [poll, mark_serviced, refresh]
+              thresholdsAndWindowsHeldBySide:
+                - peer_timeout_s = 3.0, handed to MOD-INTERVALTIMER as expiry_s at construction of each peer instance rather than evaluated in this function
+                - quorum_min_live = 3, measured on the count of peer records whose live flag is set, evaluated in HeartbeatCheck._evaluate_quorum
+            columnUsage:
+              function: FN-HM-DISK
+              instanceCount: 1
+              instanceNames: [disk-scan]
+              constructorArgsByInstance:
+                disk-scan:
+                  period_s: config.scan_period_s (storage.scan_period_s = 30.0)
+                  expiry_s: not supplied
+                  start_due: true
+              tickMembersRead: [due, now]
+              timerMethodsCalled: [poll, mark_serviced]
+              thresholdsAndWindowsHeldBySide:
+                - stall_threshold_s = 120.0, measured on StorageHealthCheck._stale_for over the per mount _last_good_probe map, evaluated in StorageHealthCheck._evaluate
+                - probe_latency_warn_ms = 40.0 and probe_latency_fault_ms = 250.0, measured on FilesystemProbe latency_clock (time.perf_counter)
+            resolveWith:
+              - file: model/modules/module-index.yaml
+                key: MOD-INTERVALTIMER apiGroups
+                gives: the members of each group and the condition under which each group is live
+              - file: model/modules/module-index.yaml
+                key: MOD-INTERVALTIMER constructionSites
+                gives: the arguments passed at every site, per function and per instance
+              - file: model/modules/module-index.yaml
+                key: MOD-INTERVALTIMER memberReadSites
+                gives: the TimerTick members each function reads, per instance
+            resolutionNote: >-
+              This cell records what each side does with the module. It does not record which group
+              a given change reaches. That follows from the activation condition of the group
+              changed, the constructor arguments at each site, and the members each side reads.
+          - module: MOD-CHECKBASE
+            path: src/health_monitor/checks/base.py
+            reachedIdentically: true
+            relationship: both functions are subclasses of PeriodicCheck
+            rowUsage:
+              function: FN-HM-HB
+              groups: [BHV-CHECK-SERVICE, BHV-CHECK-PUBLISH]
+              tickHandling: receives the whole TimerTick from service, uninterpreted
+            columnUsage:
+              function: FN-HM-DISK
+              groups: [BHV-CHECK-SERVICE, BHV-CHECK-PUBLISH]
+              tickHandling: receives the whole TimerTick from service, uninterpreted
+            note: >-
+              The base class reads TimerTick.missed_slots and TimerTick.now and nothing else. It
+              does not decide whether a check runs and does not acknowledge the cadence slot, so
+              no distinction between the two sides exists at this layer.
+          - module: MOD-BUS
+            path: src/health_monitor/bus.py
+            rowUsage:
+              function: FN-HM-HB
+              groups: [BHV-BUS-PUB, BHV-BUS-SUB]
+              via: publication through PeriodicCheck._publish and directly through MessageBus.publish for the own heartbeat; subscription directly through MessageBus.subscribe in attach
+            columnUsage:
+              function: FN-HM-DISK
+              groups: [BHV-BUS-PUB]
+              via: publication through PeriodicCheck._publish only
+          - module: MOD-TYPES
+            path: src/health_monitor/common/types.py
+            reachedIdentically: true
+            note: Both sides build CheckResult values and are named on the bus by CheckResult.topic.
+          - module: MOD-CONFIG
+            path: src/health_monitor/config.py
+            reachedIdentically: false
+            rowSection: heartbeat, HeartbeatCheckConfig
+            columnSection: storage, StorageCheckConfig
+            note: >-
+              One file and one loader, disjoint sections. A change to the loader or the file schema
+              reaches both sides; a change to one section's fields reaches the side that owns it.
+          - module: MOD-SERVICE
+            path: src/health_monitor/service.py
+            reachedIdentically: true
+            note: >-
+              build_checks constructs both sides and step services both on every iteration in
+              construction order. _sleep_budget takes the minimum of seconds_until_due across every
+              check's timer, so each side's cadence influences how long the loop sleeps for both.
+        sharedRuntimeResources:
+          - the single control-loop thread of PRC-HEALTHMON
+          - the PRC-HEALTHMON process lifetime
+          - config/health-monitor.json
+          - the MessageBus instance and its delivery queue
+        dataFlow: []
+        sharedTopics: []
+        topicNamespaceNote: >-
+          Both sides publish under the health. namespace through the same CheckResult.topic rule,
+          on disjoint topic names.
+
+  - id: N2-PRC
+    name: N-squared matrix, software processes
+    scope: The five software processes of the platform.
+    axes:
+      rows: [PRC-HEALTHMON, PRC-GENERATORCTL, PRC-MAPPINGENGINE, PRC-CATHETERIO, PRC-CASERECORDER]
+      columns: [PRC-HEALTHMON, PRC-GENERATORCTL, PRC-MAPPINGENGINE, PRC-CATHETERIO, PRC-CASERECORDER]
+    reading: >-
+      Row is the process under change. Column is the process evaluated against it. Directed - a
+      cell lists only what travels from the row process to the column process. Diagonal cells are
+      omitted.
+    evidenceBoundary: >-
+      Only PRC-HEALTHMON is decomposed in this model and only its source is present in
+      ../code-repo/. Cells with PRC-HEALTHMON on one axis are grounded in that source and in
+      config/health-monitor.json. Peer to peer cells are not modelled, and an empty peer to peer
+      cell means no evidence in this slice, not an absence of coupling.
+    allPairSharedModules:
+      - module: MOD-INTERVALTIMER
+        path: src/health_monitor/common/interval_timer.py
+        presentIn: PRC-HEALTHMON
+        presentInPeers: unknown in this slice
+      - module: MOD-BUS
+        path: src/health_monitor/bus.py
+        presentIn: PRC-HEALTHMON
+        presentInPeers: >-
+          The bus.py docstring records that the production platform runs a broker on a unix domain
+          socket and that every service links against the same client library, so every process
+          shares that client's contract. The client library itself is not in this repository.
+    cells:
+      - id: N2-PRC-HM-GENCTL
+        row: PRC-HEALTHMON
+        column: PRC-GENERATORCTL
+        interface: IF-HM-GENCTL
+        topics: [TOP-HEALTH-RAM, TOP-HEALTH-DISK, TOP-HEALTH-HEARTBEAT, TOP-HEALTH-QUORUM, TOP-PEER-HEARTBEAT-SELF]
+        producingFunctions: [FN-HM-RAM, FN-HM-DISK, FN-HM-HB]
+        consumingFunctions: []
+        evidence: >-
+          Publication is proven by the health-monitor source. Consumption by this process is the
+          platform contract and is not proven by source in this repository.
+      - id: N2-PRC-GENCTL-HM
+        row: PRC-GENERATORCTL
+        column: PRC-HEALTHMON
+        interface: IF-HM-GENCTL
+        topics: [TOP-PEER-HEARTBEAT-PEERS]
+        topicInstance: peer.heartbeat.generator-control
+        producingFunctions: []
+        consumingFunctions: [FN-HM-HB]
+        consumerEffect: >-
+          An accepted message calls refresh on the timer instance FN-HM-HB holds for this peer. A
+          message whose sequence is at or below the last recorded sequence for this peer is
+          discarded and calls nothing.
+        rosterEvidence: >-
+          generator-control is entry in config/health-monitor.json under heartbeat.peers, so FN-HM-HB
+          constructs a timer instance named peer-generator-control for it.
+      - id: N2-PRC-HM-MAPENG
+        row: PRC-HEALTHMON
+        column: PRC-MAPPINGENGINE
+        interface: IF-HM-MAPENG
+        topics: [TOP-HEALTH-RAM, TOP-HEALTH-DISK, TOP-HEALTH-HEARTBEAT, TOP-HEALTH-QUORUM, TOP-PEER-HEARTBEAT-SELF]
+        producingFunctions: [FN-HM-RAM, FN-HM-DISK, FN-HM-HB]
+        consumingFunctions: []
+        evidence: >-
+          Publication is proven by the health-monitor source. Consumption by this process is the
+          platform contract and is not proven by source in this repository.
+      - id: N2-PRC-MAPENG-HM
+        row: PRC-MAPPINGENGINE
+        column: PRC-HEALTHMON
+        interface: IF-HM-MAPENG
+        topics: [TOP-PEER-HEARTBEAT-PEERS]
+        topicInstance: peer.heartbeat.mapping-engine
+        producingFunctions: []
+        consumingFunctions: [FN-HM-HB]
+        consumerEffect: >-
+          An accepted message calls refresh on the timer instance FN-HM-HB holds for this peer. A
+          message whose sequence is at or below the last recorded sequence for this peer is
+          discarded and calls nothing.
+        rosterEvidence: >-
+          mapping-engine is entry in config/health-monitor.json under heartbeat.peers, so FN-HM-HB
+          constructs a timer instance named peer-mapping-engine for it.
+      - id: N2-PRC-HM-CATHIO
+        row: PRC-HEALTHMON
+        column: PRC-CATHETERIO
+        interface: IF-HM-CATHIO
+        topics: [TOP-HEALTH-RAM, TOP-HEALTH-DISK, TOP-HEALTH-HEARTBEAT, TOP-HEALTH-QUORUM, TOP-PEER-HEARTBEAT-SELF]
+        producingFunctions: [FN-HM-RAM, FN-HM-DISK, FN-HM-HB]
+        consumingFunctions: []
+        evidence: >-
+          Publication is proven by the health-monitor source. Consumption by this process is the
+          platform contract and is not proven by source in this repository.
+      - id: N2-PRC-CATHIO-HM
+        row: PRC-CATHETERIO
+        column: PRC-HEALTHMON
+        interface: IF-HM-CATHIO
+        topics: [TOP-PEER-HEARTBEAT-PEERS]
+        topicInstance: peer.heartbeat.catheter-io
+        producingFunctions: []
+        consumingFunctions: [FN-HM-HB]
+        consumerEffect: >-
+          An accepted message calls refresh on the timer instance FN-HM-HB holds for this peer. A
+          message whose sequence is at or below the last recorded sequence for this peer is
+          discarded and calls nothing.
+        rosterEvidence: >-
+          catheter-io is entry in config/health-monitor.json under heartbeat.peers, so FN-HM-HB
+          constructs a timer instance named peer-catheter-io for it.
+      - id: N2-PRC-HM-CASEREC
+        row: PRC-HEALTHMON
+        column: PRC-CASERECORDER
+        interface: IF-HM-CASEREC
+        topics: [TOP-HEALTH-RAM, TOP-HEALTH-DISK, TOP-HEALTH-HEARTBEAT, TOP-HEALTH-QUORUM, TOP-PEER-HEARTBEAT-SELF]
+        producingFunctions: [FN-HM-RAM, FN-HM-DISK, FN-HM-HB]
+        consumingFunctions: []
+        evidence: >-
+          Publication is proven by the health-monitor source. Consumption by this process is the
+          platform contract and is not proven by source in this repository.
+      - id: N2-PRC-CASEREC-HM
+        row: PRC-CASERECORDER
+        column: PRC-HEALTHMON
+        interface: IF-HM-CASEREC
+        topics: [TOP-PEER-HEARTBEAT-PEERS]
+        topicInstance: peer.heartbeat.case-recorder
+        producingFunctions: []
+        consumingFunctions: [FN-HM-HB]
+        consumerEffect: >-
+          An accepted message calls refresh on the timer instance FN-HM-HB holds for this peer. A
+          message whose sequence is at or below the last recorded sequence for this peer is
+          discarded and calls nothing.
+        rosterEvidence: >-
+          case-recorder is entry in config/health-monitor.json under heartbeat.peers, so FN-HM-HB
+          constructs a timer instance named peer-case-recorder for it.
+      - id: N2-PRC-GENCTL-MAPENG
+        row: PRC-GENERATORCTL
+        column: PRC-MAPPINGENGINE
+        interface: null
+        topics: []
+        producingFunctions: []
+        consumingFunctions: []
+        modelled: false
+        reason: neither process is decomposed in this model slice and neither is present in ../code-repo/
+      - id: N2-PRC-GENCTL-CATHIO
+        row: PRC-GENERATORCTL
+        column: PRC-CATHETERIO
+        interface: null
+        topics: []
+        producingFunctions: []
+        consumingFunctions: []
+        modelled: false
+        reason: neither process is decomposed in this model slice and neither is present in ../code-repo/
+      - id: N2-PRC-GENCTL-CASEREC
+        row: PRC-GENERATORCTL
+        column: PRC-CASERECORDER
+        interface: null
+        topics: []
+        producingFunctions: []
+        consumingFunctions: []
+        modelled: false
+        reason: neither process is decomposed in this model slice and neither is present in ../code-repo/
+      - id: N2-PRC-MAPENG-GENCTL
+        row: PRC-MAPPINGENGINE
+        column: PRC-GENERATORCTL
+        interface: null
+        topics: []
+        producingFunctions: []
+        consumingFunctions: []
+        modelled: false
+        reason: neither process is decomposed in this model slice and neither is present in ../code-repo/
+      - id: N2-PRC-MAPENG-CATHIO
+        row: PRC-MAPPINGENGINE
+        column: PRC-CATHETERIO
+        interface: null
+        topics: []
+        producingFunctions: []
+        consumingFunctions: []
+        modelled: false
+        reason: neither process is decomposed in this model slice and neither is present in ../code-repo/
+      - id: N2-PRC-MAPENG-CASEREC
+        row: PRC-MAPPINGENGINE
+        column: PRC-CASERECORDER
+        interface: null
+        topics: []
+        producingFunctions: []
+        consumingFunctions: []
+        modelled: false
+        reason: neither process is decomposed in this model slice and neither is present in ../code-repo/
+      - id: N2-PRC-CATHIO-GENCTL
+        row: PRC-CATHETERIO
+        column: PRC-GENERATORCTL
+        interface: null
+        topics: []
+        producingFunctions: []
+        consumingFunctions: []
+        modelled: false
+        reason: neither process is decomposed in this model slice and neither is present in ../code-repo/
+      - id: N2-PRC-CATHIO-MAPENG
+        row: PRC-CATHETERIO
+        column: PRC-MAPPINGENGINE
+        interface: null
+        topics: []
+        producingFunctions: []
+        consumingFunctions: []
+        modelled: false
+        reason: neither process is decomposed in this model slice and neither is present in ../code-repo/
+      - id: N2-PRC-CATHIO-CASEREC
+        row: PRC-CATHETERIO
+        column: PRC-CASERECORDER
+        interface: null
+        topics: []
+        producingFunctions: []
+        consumingFunctions: []
+        modelled: false
+        reason: neither process is decomposed in this model slice and neither is present in ../code-repo/
+      - id: N2-PRC-CASEREC-GENCTL
+        row: PRC-CASERECORDER
+        column: PRC-GENERATORCTL
+        interface: null
+        topics: []
+        producingFunctions: []
+        consumingFunctions: []
+        modelled: false
+        reason: neither process is decomposed in this model slice and neither is present in ../code-repo/
+      - id: N2-PRC-CASEREC-MAPENG
+        row: PRC-CASERECORDER
+        column: PRC-MAPPINGENGINE
+        interface: null
+        topics: []
+        producingFunctions: []
+        consumingFunctions: []
+        modelled: false
+        reason: neither process is decomposed in this model slice and neither is present in ../code-repo/
+      - id: N2-PRC-CASEREC-CATHIO
+        row: PRC-CASERECORDER
+        column: PRC-CATHETERIO
+        interface: null
+        topics: []
+        producingFunctions: []
+        consumingFunctions: []
+        modelled: false
+        reason: neither process is decomposed in this model slice and neither is present in ../code-repo/
+
+crossMatrixNotes:
+  - id: N2-NOTE-HWSTORAGE
+    subject: HWB-STORAGE
+    fact: >-
+      FN-HM-DISK probes the mount points listed in storage.mounts, which are /var/log and
+      /var/lib/cases. PRC-CASERECORDER writes procedure records to the console store. The two are
+      recorded as sharing HWB-STORAGE on IF-HM-CASEREC.
+  - id: N2-NOTE-QUORUM
+    subject: quorum
+    fact: >-
+      FN-HM-HB publishes a quorum result derived from the count of peer records whose live flag is
+      set, across all four peers. Its subject set therefore spans every peer process at once,
+      while FN-HM-RAM and FN-HM-DISK publish subjects drawn from console resources only.
+  - id: N2-NOTE-LOOPBUDGET
+    subject: control loop sleep
+    fact: >-
+      MOD-SERVICE _sleep_budget takes the minimum of seconds_until_due across every check's timer,
+      capped at loop_period_s of 0.25 s. The configured cadences are 5.0 s for FN-HM-RAM, 30.0 s
+      for FN-HM-DISK and 1.0 s for the FN-HM-HB emit timer.

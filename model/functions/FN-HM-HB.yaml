@@ -1,0 +1,168 @@
+schema: architecture.function.v1
+file: model/functions/FN-HM-HB.yaml
+
+function:
+  id: FN-HM-HB
+  name: Inter-process heartbeat and liveness monitoring
+  checkId: heartbeat
+  layer: LYR-FUNC
+  owningProcess: PRC-HEALTHMON
+  realizesComponent: LC-HEALTH
+  satisfiesNeeds: [UN-03]
+  description: >-
+    Two halves. Emission - once per emit period the service publishes its own heartbeat so that
+    peers can observe it. Observation - every configured peer publishes its heartbeat on its own
+    topic, each arriving message refreshes that peer's own timer, and a peer stays live for as
+    long as its timer has not reported expiry. When fewer than the configured number of peers are
+    live, a quorum fault is published alongside the per-peer results, because the supervisor uses
+    quorum loss to drive the platform into its safe state.
+  cadence:
+    kind: periodic emission plus per peer expiry observation
+    configuredEmitPeriodSeconds: 1.0
+    configKey: heartbeat.emit_period_s
+    configuredPeerTimeoutSeconds: 3.0
+    peerTimeoutConfigKey: heartbeat.peer_timeout_s
+    startDue: true on the emit timer; not supplied on the per peer instances
+  supervisedSubjects:
+    source: heartbeat.peers
+    values: [generator-control, mapping-engine, catheter-io, case-recorder]
+    additionalSubject: quorum
+    quorumMinLive: 3
+  inputs:
+    - name: Peer roster and windows
+      kind: configuration
+      origin: MOD-CONFIG HeartbeatCheckConfig
+      fields: [emit_period_s, peer_timeout_s, peers, quorum_min_live]
+    - name: Peer heartbeat messages
+      kind: subscription
+      topic: TOP-PEER-HEARTBEAT-PEERS
+      subscribedIn: HeartbeatCheck.attach, pattern peer.heartbeat.*
+      handler: HeartbeatCheck.on_peer_heartbeat
+      payloadFields: [instance, sequence, emit_period_s]
+      note: >-
+        A message with a sequence at or below the last recorded sequence for that peer is
+        discarded as stale or replayed and does not refresh anything.
+    - name: Service timer tick
+      kind: event
+      origin: MOD-INTERVALTIMER via MOD-CHECKBASE
+      note: >-
+        One TimerTick per control-loop iteration, produced by this function's emit timer instance
+        and passed through PeriodicCheck.service without interpretation.
+    - name: Peer timer ticks
+      kind: event
+      origin: MOD-INTERVALTIMER, polled directly inside this function
+      note: >-
+        On every control-loop iteration this function polls each peer's own timer instance at the
+        service tick's clock reading, producing one TimerTick per peer.
+  outputs:
+    - name: Own heartbeat
+      kind: published message
+      topic: TOP-PEER-HEARTBEAT-SELF
+      emittedWhen: the service tick reports due
+      payloadFields: [instance, sequence, emit_period_s]
+    - name: Peer liveness result
+      kind: published result
+      topic: TOP-HEALTH-HEARTBEAT
+      states: [OK, FAULT]
+      subject: the peer name
+      emittedWhen: a peer's live flag transitions, not on every iteration
+      metrics: [silent_for_s, losses, refreshes]
+      liveFlagRule: >-
+        record.live is assigned from the peer tick as not expired. The peer tick's expired member
+        is the only input to that assignment; this function keeps no separate record of peer
+        arrival times to derive it from.
+      silentForRule: >-
+        silent_for_s is the peer tick's time_since_refresh member, or zero when that member
+        carries no value.
+    - name: Peer lost record
+      kind: log record
+      level: error
+      fields: [peer, silent_for_s, peer_timeout_s]
+    - name: Quorum result
+      kind: published result
+      topic: TOP-HEALTH-QUORUM
+      states: [OK, FAULT]
+      subject: quorum
+      emittedWhen: the quorum state transitions
+      metrics: [live_peers, required_peers, configured_peers]
+      derivedFrom: the count of peer records whose live flag is set
+  timerUsage:
+    instances:
+      - name: heartbeat-emit
+        constructedIn: src/health_monitor/checks/heartbeat.py HeartbeatCheck.__init__
+        constructorArgs:
+          period_s: config.emit_period_s
+          expiry_s: not supplied
+          clock: injected, defaults to time.monotonic
+          start_due: true
+        count: 1
+        role: schedules this service's own outgoing heartbeat
+      - name: peer-<peer>
+        constructedIn: src/health_monitor/checks/heartbeat.py HeartbeatCheck.__init__, one per entry in config.peers
+        constructorArgs:
+          period_s: config.emit_period_s
+          expiry_s: config.peer_timeout_s
+          clock: injected, defaults to time.monotonic
+          start_due: not supplied
+        count: one per configured peer, four with the shipped configuration
+        role: holds the silence window for one peer
+        heldIn: PeerRecord.timer
+    tickMembersRead:
+      fromServiceTick: [due, now]
+      fromPeerTick: [expired, time_since_refresh, now]
+    membersAlsoReadByTheBaseClass:
+      members: [missed_slots, now]
+      readIn: MOD-CHECKBASE PeriodicCheck.service
+      note: >-
+        Read for every subclass, on the instance named above. tickMembersRead on this function
+        records what this function's own code reads, not what the base class reads on its behalf.
+    timerMethodsCalled: [poll, mark_serviced, refresh]
+    refreshCallSite: HeartbeatCheck.on_peer_heartbeat, on the timer of the peer that sent the message
+    cadenceSlotAcknowledgedBy: this function, by calling mark_serviced on the emit timer after emitting
+  otherClocksAndWindows:
+    - name: peer silence window
+      configKey: heartbeat.peer_timeout_s
+      configuredValueSeconds: 3.0
+      measuredOn: >-
+        Each peer's own IntervalTimer instance. The value is passed as the expiry_s constructor
+        argument at the per peer construction site rather than compared inside this function.
+      evaluatedIn: MOD-INTERVALTIMER, reported back through the peer tick
+      relationToIntervalTimer: >-
+        Handed to the module. This function keeps no separate record of peer arrival times to
+        derive the window from.
+    - name: quorum floor
+      configKey: heartbeat.quorum_min_live
+      configuredValue: 3
+      measuredOn: the count of peer records whose live flag is set
+      evaluatedIn: HeartbeatCheck._evaluate_quorum
+      relationToIntervalTimer: >-
+        Indirect. The live flag is assigned from the peer tick in _evaluate_peer.
+  realizedBy:
+    - module: MOD-HEARTBEAT
+      path: src/health_monitor/checks/heartbeat.py
+      role: primary
+      exclusiveToThisFunction: true
+    - module: MOD-CHECKBASE
+      path: src/health_monitor/checks/base.py
+      role: shared base class
+    - module: MOD-INTERVALTIMER
+      path: src/health_monitor/common/interval_timer.py
+      role: shared module
+    - module: MOD-TYPES
+      path: src/health_monitor/common/types.py
+      role: shared value types
+    - module: MOD-BUS
+      path: src/health_monitor/bus.py
+      role: shared transport
+    - module: MOD-CONFIG
+      path: src/health_monitor/config.py
+      role: shared configuration
+  allocations:
+    requirements: [RQ-HM-07, RQ-HM-08, RQ-HM-09]
+    risks: [RSK-HM-04, RSK-HM-05]
+    riskControlRequirements: [RC-HM-03, RC-HM-04]
+    verifications: [TC-HM-07, TC-HM-08, TC-HM-09]
+    reverseIndex: model/allocation/control-to-function.yaml
+  interactionCells:
+    asRow: [N2-HB-RAM, N2-HB-DISK]
+    asColumn: [N2-RAM-HB, N2-DISK-HB]

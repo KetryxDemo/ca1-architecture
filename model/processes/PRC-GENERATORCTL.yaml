@@ -1,0 +1,48 @@
+schema: architecture.process.v1
+file: model/processes/PRC-GENERATORCTL.yaml
+
+process:
+  id: PRC-GENERATORCTL
+  name: Generator Control Service
+  processName: generator-control
+  layer: LYR-BLOCK
+  realizesComponent: LC-THERAPY
+  satisfiesNeeds: [UN-02]
+  hostedOn: HWB-CONSOLE
+  accessesHardware: [HWB-GEN]
+  description: >-
+    Commands the energy generator during a delivery, regulates delivered power against the
+    clinician setpoint, and holds the interlocks that inhibit or terminate a delivery when a
+    precondition is not met.
+  executionModel: >-
+    Single operating system process started at console boot. Links against the same platform
+    message bus client as every other service.
+  safetyClassification: safety related platform service
+  sourceRoot: not in ../code-repo/
+  decompositionModelled: false
+  decompositionNote: >-
+    This process is modelled at block level only. Its functions, source modules and design control
+    allocation are held outside this model slice, and ../code-repo/ contains the health-monitor
+    service alone. The bus contract below is modelled because PRC-HEALTHMON depends on it, and it
+    is recoverable from the health-monitor source and configuration. Absence of FN, MOD, RQ, RSK,
+    RC or TC ids on this process is a scope boundary of the slice, not a coverage state.
+  ownsFunctions: []
+  realizedByModules: []
+  publishes:
+    - TOP-PEER-HEARTBEAT-PEERS
+  subscribes:
+    - TOP-HEALTH-RAM
+    - TOP-HEALTH-DISK
+    - TOP-HEALTH-HEARTBEAT
+    - TOP-HEALTH-QUORUM
+  subscriptionEvidence: >-
+    Inferred from the platform contract, not from source in this repository. The health-monitor
+    source proves publication of these topics and proves that this process publishes
+    peer.heartbeat.generator-control; it does not prove which health topics this process reads.
+  interfaces:
+    - IF-HM-GENCTL
+  designControlAllocation:
+    populatedInThisModel: false
+    resolveVia: null
+  interactionMatrices:
+    - N2-PRC
