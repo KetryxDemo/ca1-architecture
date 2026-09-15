@@ -45,13 +45,13 @@ model:
     - prefix: MDL
       entity: Model root
     - prefix: RQ
-      entity: Requirement (design control, held in Ketryx)
+      entity: Requirement (design control, maintained outside this repo)
     - prefix: RSK
-      entity: Risk (design control, held in Ketryx)
+      entity: Risk (design control, maintained outside this repo)
     - prefix: RC
-      entity: Requirement acting as a risk control (design control, held in Ketryx)
+      entity: Requirement acting as a risk control (design control, maintained outside this repo)
     - prefix: TC
-      entity: Verification spec / test case (design control, held in Ketryx)
+      entity: Verification spec / test case (design control, maintained outside this repo)
 
 layers:
   design:
@@ -79,13 +79,13 @@ layers:
     - id: LYR-REQ
       name: Requirements
       holds: RQ, RC
-      systemOfRecord: Ketryx
+      systemOfRecord: requirements management tool
       populatedInThisModel: true
       indexedIn: model/allocation/control-to-function.yaml
     - id: LYR-SAFETY
       name: Safety risk
       holds: RSK
-      systemOfRecord: Ketryx
+      systemOfRecord: requirements management tool
       populatedInThisModel: true
       indexedIn: model/allocation/control-to-function.yaml
       note: >-
@@ -95,19 +95,19 @@ layers:
     - id: LYR-CYBER
       name: Cybersecurity
       holds: none
-      systemOfRecord: Ketryx
+      systemOfRecord: requirements management tool
       populatedInThisModel: false
       indexedIn: null
     - id: LYR-HF
       name: Human factors
       holds: none
-      systemOfRecord: Ketryx
+      systemOfRecord: requirements management tool
       populatedInThisModel: false
       indexedIn: null
     - id: LYR-VV
       name: Verification and validation
       holds: TC
-      systemOfRecord: Ketryx
+      systemOfRecord: requirements management tool
       populatedInThisModel: true
       indexedIn: model/allocation/control-to-function.yaml
 

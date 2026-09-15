@@ -82,16 +82,16 @@ Their names are the strings the platform uses on the bus: `generator-control`, `
 | Logical components | `LYR-LOGICAL` | `LC-*` | `model/platform.yaml` |
 | Software and hardware blocks | `LYR-BLOCK` | `PRC-*`, `HWB-*` | `model/processes/`, `model/platform.yaml` |
 | Realization | `LYR-REAL` | `MOD-*`, `BHV-*` | `model/modules/module-index.yaml` |
-| Requirements | `LYR-REQ` | `RQ-*`, `RC-*` | held in Ketryx, indexed in `model/allocation/` |
-| Safety risk | `LYR-SAFETY` | `RSK-*` | held in Ketryx, indexed in `model/allocation/` |
+| Requirements | `LYR-REQ` | `RQ-*`, `RC-*` | maintained outside this repo, indexed in `model/allocation/` |
+| Safety risk | `LYR-SAFETY` | `RSK-*` | maintained outside this repo, indexed in `model/allocation/` |
 | Cybersecurity | `LYR-CYBER` | none in this slice | - |
 | Human factors | `LYR-HF` | none in this slice | - |
-| Verification and validation | `LYR-VV` | `TC-*` | held in Ketryx, indexed in `model/allocation/` |
+| Verification and validation | `LYR-VV` | `TC-*` | maintained outside this repo, indexed in `model/allocation/` |
 
 ## What this model does not hold
 
 Design control **content** is not here. Requirement text, risk statements and test steps live in
-Ketryx, which is the system of record for them. This repository holds the **allocation** - which
+the requirements management tool, which is the system of record for them. This repository holds the **allocation** - which
 control id belongs to which function, and what that function is built from. An `RQ-`, `RSK-`,
 `RC-` or `TC-` id appearing here is a pointer, never a copy.
 

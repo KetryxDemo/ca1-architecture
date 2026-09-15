@@ -195,7 +195,7 @@ the file disagree, the file is right.
 | --- | --- | --- | --- |
 | `MDL-CAP` | `model/platform.yaml` | 5 | Cardiac Ablation Platform architecture model |
 
-### Requirements (held in Ketryx) (`RQ-`)
+### Requirements (maintained outside this repo) (`RQ-`)
 
 | Id | File | Line | Name |
 | --- | --- | --- | --- |
@@ -209,7 +209,7 @@ the file disagree, the file is right.
 | `RQ-HM-08` | `model/allocation/control-to-function.yaml` | 250 |  |
 | `RQ-HM-09` | `model/allocation/control-to-function.yaml` | 279 |  |
 
-### Risks (held in Ketryx) (`RSK-`)
+### Risks (maintained outside this repo) (`RSK-`)
 
 | Id | File | Line | Name |
 | --- | --- | --- | --- |
@@ -219,7 +219,7 @@ the file disagree, the file is right.
 | `RSK-HM-04` | `model/allocation/control-to-function.yaml` | 395 |  |
 | `RSK-HM-05` | `model/allocation/control-to-function.yaml` | 424 |  |
 
-### Requirements acting as risk controls (held in Ketryx) (`RC-`)
+### Requirements acting as risk controls (maintained outside this repo) (`RC-`)
 
 | Id | File | Line | Name |
 | --- | --- | --- | --- |
@@ -228,7 +228,7 @@ the file disagree, the file is right.
 | `RC-HM-03` | `model/allocation/control-to-function.yaml` | 515 |  |
 | `RC-HM-04` | `model/allocation/control-to-function.yaml` | 546 |  |
 
-### Verification specs / test cases (held in Ketryx) (`TC-`)
+### Verification specs / test cases (maintained outside this repo) (`TC-`)
 
 | Id | File | Line | Name |
 | --- | --- | --- | --- |

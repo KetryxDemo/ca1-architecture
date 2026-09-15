@@ -4,20 +4,20 @@ file: model/allocation/function-to-control.yaml
 about: >-
   Forward allocation index. For each system function, the design control ids allocated to it, and
   the source modules it is realized from. Design control content - requirement text, risk
-  statements, test steps - is not held here. It lives in Ketryx. This file holds the allocation
+  statements, test steps - is not held here. It lives in the requirements management tool. This file holds the allocation
   only, so that an agent can go from a function or a source path to the set of ids it must consult.
 
 controlItemTypes:
   - prefix: RQ
-    ketryxItemType: REQUIREMENT
+    itemType: REQUIREMENT
     layer: LYR-REQ
     role: requirement
   - prefix: RSK
-    ketryxItemType: RISK
+    itemType: RISK
     layer: LYR-SAFETY
     role: risk
   - prefix: RC
-    ketryxItemType: REQUIREMENT
+    itemType: REQUIREMENT
     layer: LYR-REQ
     role: risk control
     roleExpressedBy: >-
@@ -25,7 +25,7 @@ controlItemTypes:
       target. There is no separate risk control item type; RC- is a naming convention in this
       model for the requirements that carry that role.
   - prefix: TC
-    ketryxItemType: TEST_PROTOCOL
+    itemType: TEST_PROTOCOL
     layer: LYR-VV
     role: verification spec / test case
 
