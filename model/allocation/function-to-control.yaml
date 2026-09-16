@@ -132,6 +132,122 @@ allocations:
     riskControlRequirements: [RC-HM-03, RC-HM-04]
     verifications: [TC-HM-07, TC-HM-08, TC-HM-09]
 
+controlIdentifierCrosswalk:
+  about: >-
+    Every design control id used in this model is the model's own token. The controls themselves are
+    held in the requirements management tool, which issues its own identifier. This block is the
+    import mapping between the two, written when the controls were imported. Resolve a model token
+    to an item by its itemKey; the token alone will not match anything in that tool.
+  entries:
+    - token: RC-HM-01
+      itemKey: KX-C2CIA-4
+      itemType: REQUIREMENT
+      title: "Periodic checksum of safety-critical memory with energy inhibit on mismatch"
+    - token: RC-HM-02
+      itemKey: KX-C2CIA-5
+      itemType: REQUIREMENT
+      title: "Capacity threshold and write read-back verification with degraded-mode gate"
+    - token: RC-HM-03
+      itemKey: KX-C2CIA-6
+      itemType: REQUIREMENT
+      title: "Bounded-latency heartbeat supervision with automatic transition to safe state"
+    - token: RC-HM-04
+      itemKey: KX-C2CIA-7
+      itemType: REQUIREMENT
+      title: "Independent hardware watchdog and startup validation of configured timeouts"
+    - token: RQ-HM-01
+      itemKey: KX-C2CIA-8
+      itemType: REQUIREMENT
+      title: "Safety-critical memory regions scanned every 1000 ms"
+    - token: RQ-HM-02
+      itemKey: KX-C2CIA-9
+      itemType: REQUIREMENT
+      title: "Memory integrity fault reported within 200 ms of detection"
+    - token: RQ-HM-03
+      itemKey: KX-C2CIA-10
+      itemType: REQUIREMENT
+      title: "Memory scan bounded to 3 percent CPU and 250 ms per cycle"
+    - token: RQ-HM-04
+      itemKey: KX-C2CIA-11
+      itemType: REQUIREMENT
+      title: "Therapy-log volume free space checked every 30 s against a 2 GiB floor"
+    - token: RQ-HM-05
+      itemKey: KX-C2CIA-12
+      itemType: REQUIREMENT
+      title: "Therapy-log writes read-back verified and media health polled every 60 s"
+    - token: RQ-HM-06
+      itemKey: KX-C2CIA-13
+      itemType: REQUIREMENT
+      title: "Monitored processes emit a heartbeat every 100 ms within 10 ms jitter"
+    - token: RQ-HM-07
+      itemKey: KX-C2CIA-14
+      itemType: REQUIREMENT
+      title: "Peer process declared unresponsive within 500 ms of its last heartbeat"
+    - token: RQ-HM-08
+      itemKey: KX-C2CIA-15
+      itemType: REQUIREMENT
+      title: "RF energy terminated and safe state entered within 700 ms of last heartbeat"
+    - token: RQ-HM-09
+      itemKey: KX-C2CIA-16
+      itemType: REQUIREMENT
+      title: "Monitor self-supervised by hardware watchdog with configured timeouts bounded at startup"
+    - token: RSK-HM-01
+      itemKey: KX-C2CIA-17
+      itemType: RISK
+      title: "Corrupted ablation parameter table delivers incorrect RF power"
+    - token: RSK-HM-02
+      itemKey: KX-C2CIA-18
+      itemType: RISK
+      title: "Therapy log records lost to full or failing storage"
+    - token: RSK-HM-03
+      itemKey: KX-C2CIA-19
+      itemType: RISK
+      title: "Dead therapy-control process leaves RF energy delivering unsupervised"
+    - token: RSK-HM-04
+      itemKey: KX-C2CIA-20
+      itemType: RISK
+      title: "False loss of liveness aborts therapy mid-lesion"
+    - token: RSK-HM-05
+      itemKey: KX-C2CIA-21
+      itemType: RISK
+      title: "Hung health-monitor leaves every peer unsupervised"
+    - token: TC-HM-01
+      itemKey: KX-C2CIA-22
+      itemType: TEST_PROTOCOL
+      title: "Memory scan interval and fault-report latency under injected bit flip"
+    - token: TC-HM-02
+      itemKey: KX-C2CIA-23
+      itemType: TEST_PROTOCOL
+      title: "Memory scan duration and CPU budget under 30 minute soak"
+    - token: TC-HM-03
+      itemKey: KX-C2CIA-24
+      itemType: TEST_PROTOCOL
+      title: "Low free space raises degraded mode and blocks new case start"
+    - token: TC-HM-04
+      itemKey: KX-C2CIA-25
+      itemType: TEST_PROTOCOL
+      title: "Write read-back and SMART polling detect injected media faults"
+    - token: TC-HM-05
+      itemKey: KX-C2CIA-26
+      itemType: TEST_PROTOCOL
+      title: "Heartbeat emission interval and jitter across all monitored processes"
+    - token: TC-HM-06
+      itemKey: KX-C2CIA-27
+      itemType: TEST_PROTOCOL
+      title: "Unresponsive peer declared within 500 ms of its last heartbeat"
+    - token: TC-HM-07
+      itemKey: KX-C2CIA-28
+      itemType: TEST_PROTOCOL
+      title: "RF energy off within 700 ms of last heartbeat during active delivery"
+    - token: TC-HM-08
+      itemKey: KX-C2CIA-29
+      itemType: TEST_PROTOCOL
+      title: "No false liveness loss over a 4 hour worst-case load soak"
+    - token: TC-HM-09
+      itemKey: KX-C2CIA-30
+      itemType: TEST_PROTOCOL
+      title: "Monitor watchdog reset and rejection of out-of-bound timeout configuration"
+
 moduleToControlIndex:
   about: >-
     From a changed source path to the design control ids that path can reach. `controls` is the
